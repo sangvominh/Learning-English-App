@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240">
+  <rect width="240" height="240" rx="36" fill="#E0F2FE"/>
+  <rect x="42" y="168" width="156" height="28" rx="14" fill="#10B981"/>
+  <circle cx="120" cy="84" r="28" fill="#FDE68A"/>
+  <path d="M90 120 Q120 108 150 120 L158 170 L82 170 Z" fill="#3B82F6"/>
+  <circle cx="110" cy="82" r="4" fill="#1F2937"/>
+  <circle cx="130" cy="82" r="4" fill="#1F2937"/>
+  <path d="M112 94 Q120 101 128 94" fill="none" stroke="#1F2937" stroke-width="3.5" stroke-linecap="round"/>
+  <rect x="74" y="162" width="38" height="14" rx="7" fill="#1D4ED8"/>
+  <rect x="128" y="162" width="38" height="14" rx="7" fill="#1D4ED8"/>
+  <text x="120" y="46" text-anchor="middle" font-family="sans-serif" font-weight="800" font-size="22" fill="#0369A1">SIT / SAT</text>
+</svg>

@@ -1,0 +1,735 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { CheckCircle2, HelpCircle, Sparkles, Turtle, Volume2 } from "lucide-react";
+import { playCardAudio, playSfx } from "@/lib/audio-player";
+import type {
+  ImplicitOutcome,
+  LearningCard,
+  PronunciationFeedback,
+} from "@/lib/types";
+import { PronunciationCoach } from "./PronunciationCoach";
+
+export type MiniGameMode =
+  | "listen_pick"
+  | "tile_build"
+  | "memory_match"
+  | "speak_flash";
+
+interface GameChallenge {
+  id: string;
+  mode: MiniGameMode;
+  card: LearningCard;
+}
+
+interface MiniGameArenaProps {
+  cards: LearningCard[];
+  distractorPool: LearningCard[];
+  preferredModes?: MiniGameMode[];
+  onCardResult: (cardId: string, outcome: ImplicitOutcome) => Promise<void> | void;
+  onComplete: (summary: { totalRounds: number; starsEarned: number }) => void;
+}
+
+function shuffle<T>(arr: T[]): T[] {
+  const copy = [...arr];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
+
+function buildQueue(
+  cards: LearningCard[],
+  preferredModes?: MiniGameMode[]
+): GameChallenge[] {
+  if (cards.length === 0) return [];
+  const defaultOrder: MiniGameMode[] = [
+    "listen_pick",
+    "tile_build",
+    "speak_flash",
+    "memory_match",
+  ];
+  const modes = preferredModes && preferredModes.length > 0 ? preferredModes : defaultOrder;
+
+  const list: GameChallenge[] = [];
+  cards.forEach((card, idx) => {
+    let mode = modes[idx % modes.length];
+    // memory_match works best once per round if we have at least 3 cards
+    if (mode === "memory_match" && cards.length < 2) {
+      mode = "listen_pick";
+    }
+    list.push({
+      id: `${card.id}-${mode}-${idx}`,
+      mode,
+      card,
+    });
+  });
+
+  // Ensure at most one memory_match block per session to keep pacing snappy
+  let seenMemory = false;
+  return list.map((item, idx) => {
+    if (item.mode === "memory_match") {
+      if (seenMemory) {
+        return { ...item, mode: idx % 2 === 0 ? "listen_pick" : "tile_build" };
+      }
+      seenMemory = true;
+    }
+    return item;
+  });
+}
+
+export function MiniGameArena({
+  cards,
+  distractorPool,
+  preferredModes,
+  onCardResult,
+  onComplete,
+}: MiniGameArenaProps) {
+  const [queue, setQueue] = useState<GameChallenge[]>(() =>
+    buildQueue(cards, preferredModes)
+  );
+  const [index, setIndex] = useState(0);
+  const [starsEarned, setStarsEarned] = useState(0);
+  const [completedRounds, setCompletedRounds] = useState(0);
+
+  const current = queue[index];
+
+  const advanceRound = (earned: number) => {
+    const nextStars = starsEarned + earned;
+    const nextCompleted = completedRounds + 1;
+    setStarsEarned(nextStars);
+    setCompletedRounds(nextCompleted);
+
+    if (index + 1 >= queue.length) {
+      playSfx("fanfare");
+      onComplete({ totalRounds: nextCompleted, starsEarned: nextStars });
+    } else {
+      setIndex((i) => i + 1);
+    }
+  };
+
+  const handleMissAndRequeue = (challenge: GameChallenge) => {
+    setQueue((prev) => {
+      const alreadyRequeued = prev.filter(
+        (c) => c.card.id === challenge.card.id && c.mode === challenge.mode
+      ).length;
+      if (alreadyRequeued >= 2) return prev;
+      return [
+        ...prev,
+        {
+          ...challenge,
+          id: `${challenge.id}-retry`,
+        },
+      ];
+    });
+  };
+
+  if (!current) {
+    return null;
+  }
+
+  const progressPct = Math.round(((index + 1) / queue.length) * 100);
+
+  return (
+    <div className="space-y-4">
+      {/* Round progress bar */}
+      <div className="flex items-center gap-3">
+        <div className="flex-1 h-3 rounded-full bg-amber-100 overflow-hidden">
+          <div
+            className="h-full bg-emerald-500 rounded-full transition-all duration-300"
+            style={{ width: `${progressPct}%` }}
+          />
+        </div>
+        <span className="text-xs font-extrabold text-slate-600 shrink-0">
+          Trò {index + 1}/{queue.length} • ⭐ +{starsEarned}
+        </span>
+      </div>
+
+      {current.mode === "listen_pick" && (
+        <ListenPickGame
+          key={current.id}
+          card={current.card}
+          pool={distractorPool}
+          onResult={(outcome, missed) => {
+            if (missed) handleMissAndRequeue(current);
+            void onCardResult(current.card.id, outcome);
+            advanceRound(missed ? 1 : 2);
+          }}
+        />
+      )}
+
+      {current.mode === "tile_build" && (
+        <TileBuildGame
+          key={current.id}
+          card={current.card}
+          onResult={(outcome, missed) => {
+            if (missed) handleMissAndRequeue(current);
+            void onCardResult(current.card.id, outcome);
+            advanceRound(missed ? 1 : 2);
+          }}
+        />
+      )}
+
+      {current.mode === "memory_match" && (
+        <MemoryMatchGame
+          key={current.id}
+          cards={cards.slice(0, 4)}
+          onResult={(cardId, outcome) => void onCardResult(cardId, outcome)}
+          onDone={(earned) => advanceRound(earned)}
+        />
+      )}
+
+      {current.mode === "speak_flash" && (
+        <SpeakFlashGame
+          key={current.id}
+          card={current.card}
+          onEvaluated={(fb) => {
+            void onCardResult(current.card.id, {
+              kind: "speaking",
+              speakingScore: fb.score,
+              mistakeNoteVi: fb.stars < 3 ? fb.correctionVi : undefined,
+            });
+          }}
+          onNext={(stars) => advanceRound(stars)}
+        />
+      )}
+    </div>
+  );
+}
+
+/* =========================================================
+ * Mini-game 1: Nghe và Chọn hình
+ * ======================================================= */
+function ListenPickGame({
+  card,
+  pool,
+  onResult,
+}: {
+  card: LearningCard;
+  pool: LearningCard[];
+  onResult: (outcome: ImplicitOutcome, missed: boolean) => void;
+}) {
+  const options = useMemo(() => {
+    const uniqueOthers = shuffle(
+      pool.filter(
+        (c) =>
+          c.id !== card.id &&
+          c.imageUrl !== card.imageUrl &&
+          c.text.toLowerCase() !== card.text.toLowerCase()
+      )
+    ).slice(0, 3);
+    // Fallback if pool is tiny
+    const fillers =
+      uniqueOthers.length < 3
+        ? pool.filter((c) => c.id !== card.id).slice(0, 3 - uniqueOthers.length)
+        : [];
+    return shuffle([card, ...uniqueOthers, ...fillers]).slice(0, 4);
+  }, [card, pool]);
+
+  const [attempts, setAttempts] = useState(0);
+  const [wrongIds, setWrongIds] = useState<string[]>([]);
+  const [solved, setSolved] = useState(false);
+
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      void playCardAudio(card, "normal");
+    }, 200);
+    return () => window.clearTimeout(t);
+  }, [card]);
+
+  const handlePick = (opt: LearningCard) => {
+    if (solved) return;
+    const nextAttempts = attempts + 1;
+    setAttempts(nextAttempts);
+
+    if (opt.id === card.id) {
+      setSolved(true);
+      playSfx("correct");
+      window.setTimeout(() => {
+        onResult(
+          {
+            kind: "game",
+            attempts: nextAttempts,
+            mistakeNoteVi:
+              nextAttempts > 1 ? `Nghe nhầm hình ở từ "${card.text}"` : undefined,
+          },
+          nextAttempts > 1
+        );
+      }, 650);
+    } else {
+      playSfx("tryAgain");
+      setWrongIds((prev) => [...prev, opt.id]);
+    }
+  };
+
+  return (
+    <div className="rounded-3xl bg-white border-2 border-sky-100 p-4 shadow-sm space-y-4 animate-pop-in">
+      <div className="text-center space-y-2">
+        <span className="inline-block rounded-full bg-sky-100 text-sky-800 px-3 py-1 text-xs font-extrabold">
+          👂 Nghe & Chọn hình đúng
+        </span>
+        <div className="flex items-center justify-center gap-2">
+          <button
+            type="button"
+            onClick={() => void playCardAudio(card, "normal")}
+            className="btn-chunky inline-flex items-center gap-2 rounded-2xl bg-sky-500 text-white px-5 py-3 font-extrabold text-base shadow-[0_4px_0_#0284C7]"
+          >
+            <Volume2 className="w-5 h-5" />
+            Nghe lại
+          </button>
+          <button
+            type="button"
+            onClick={() => void playCardAudio(card, "slow")}
+            className="btn-chunky inline-flex items-center gap-1.5 rounded-2xl bg-amber-100 text-amber-900 px-3.5 py-3 font-extrabold text-sm shadow-[0_4px_0_#FCD34D]"
+          >
+            <Turtle className="w-4 h-4" />
+            Chậm
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        {options.map((opt) => {
+          const isWrong = wrongIds.includes(opt.id);
+          const isRight = solved && opt.id === card.id;
+          return (
+            <button
+              key={opt.id}
+              type="button"
+              disabled={solved || isWrong}
+              onClick={() => handlePick(opt)}
+              className={`rounded-3xl border-2 p-3 flex flex-col items-center justify-center gap-2 transition-all ${
+                isRight
+                  ? "border-emerald-500 bg-emerald-50 scale-[1.02] shadow-md"
+                  : isWrong
+                  ? "border-rose-200 bg-rose-50/60 opacity-45 animate-wiggle"
+                  : "border-slate-100 bg-amber-50/30 hover:border-sky-300 active:scale-95"
+              }`}
+            >
+              <img
+                src={opt.imageUrl}
+                alt={opt.meaningVi}
+                className="w-24 h-24 object-contain rounded-2xl"
+              />
+              {isRight && (
+                <span className="inline-flex items-center gap-1 text-sm font-extrabold text-emerald-700">
+                  <CheckCircle2 className="w-4 h-4" /> {opt.text}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================
+ * Mini-game 2: Ghép chữ / Ghép câu
+ * ======================================================= */
+interface TileToken {
+  id: string;
+  label: string;
+}
+
+function TileBuildGame({
+  card,
+  onResult,
+}: {
+  card: LearningCard;
+  onResult: (outcome: ImplicitOutcome, missed: boolean) => void;
+}) {
+  const isSentence = card.type === "sentence";
+
+  const targetUnits = useMemo(() => {
+    if (isSentence) {
+      return card.text.trim().split(/\s+/);
+    }
+    return card.text.trim().split("");
+  }, [card.text, isSentence]);
+
+  const initialTiles = useMemo<TileToken[]>(() => {
+    const real = targetUnits.map((label, idx) => ({
+      id: `real-${idx}-${label}`,
+      label,
+    }));
+    // Add 1-2 gentle distractors for short phonics/words
+    const extras: TileToken[] = [];
+    if (!isSentence && targetUnits.length <= 4) {
+      const candidates = ["s", "a", "t", "p", "i", "n", "o", "e"].filter(
+        (ch) => !targetUnits.includes(ch)
+      );
+      extras.push(
+        ...candidates.slice(0, 2).map((ch, idx) => ({
+          id: `extra-${idx}-${ch}`,
+          label: ch,
+        }))
+      );
+    }
+    return shuffle([...real, ...extras]);
+  }, [isSentence, targetUnits]);
+
+  const [pickedIds, setPickedIds] = useState<string[]>([]);
+  const [attempts, setAttempts] = useState(0);
+  const [usedHint, setUsedHint] = useState(false);
+  const [shake, setShake] = useState(false);
+  const [solved, setSolved] = useState(false);
+
+  const pickedTokens = pickedIds
+    .map((id) => initialTiles.find((t) => t.id === id))
+    .filter((t): t is TileToken => Boolean(t));
+
+  const checkAnswer = (nextIds: string[]) => {
+    if (nextIds.length !== targetUnits.length) return;
+    const built = nextIds
+      .map((id) => initialTiles.find((t) => t.id === id)?.label ?? "")
+      .join(isSentence ? " " : "");
+
+    const expected = targetUnits.join(isSentence ? " " : "");
+    const nextAttempts = attempts + 1;
+    setAttempts(nextAttempts);
+
+    if (built.toLowerCase() === expected.toLowerCase()) {
+      setSolved(true);
+      playSfx("correct");
+      void playCardAudio(card, "normal");
+      window.setTimeout(() => {
+        onResult(
+          {
+            kind: "game",
+            attempts: nextAttempts,
+            usedHint,
+            mistakeNoteVi:
+              nextAttempts > 1 ? `Nhầm thứ tự ghép "${card.text}"` : undefined,
+          },
+          nextAttempts > 1
+        );
+      }, 750);
+    } else {
+      playSfx("tryAgain");
+      setShake(true);
+      window.setTimeout(() => {
+        setShake(false);
+        setPickedIds([]);
+      }, 450);
+    }
+  };
+
+  const tapPoolTile = (tile: TileToken) => {
+    if (solved || pickedIds.includes(tile.id)) return;
+    if (pickedIds.length >= targetUnits.length) return;
+    playSfx("tap");
+    const next = [...pickedIds, tile.id];
+    setPickedIds(next);
+    checkAnswer(next);
+  };
+
+  const removePicked = (tileId: string) => {
+    if (solved) return;
+    setPickedIds((prev) => prev.filter((id) => id !== tileId));
+  };
+
+  const handleHint = () => {
+    if (solved) return;
+    setUsedHint(true);
+    const nextSlotIdx = pickedIds.length;
+    if (nextSlotIdx >= targetUnits.length) return;
+    const neededLabel = targetUnits[nextSlotIdx];
+    const match = initialTiles.find(
+      (t) =>
+        t.label.toLowerCase() === neededLabel.toLowerCase() &&
+        !pickedIds.includes(t.id)
+    );
+    if (match) {
+      const next = [...pickedIds, match.id];
+      setPickedIds(next);
+      checkAnswer(next);
+    }
+  };
+
+  return (
+    <div className="rounded-3xl bg-white border-2 border-amber-100 p-4 shadow-sm space-y-4 animate-pop-in">
+      <div className="flex items-center justify-between">
+        <span className="rounded-full bg-amber-100 text-amber-900 px-3 py-1 text-xs font-extrabold">
+          🧩 {isSentence ? "Xếp thành câu đúng" : "Ghép chữ đúng"}
+        </span>
+        <button
+          type="button"
+          onClick={() => void playCardAudio(card, "normal")}
+          className="inline-flex items-center gap-1 rounded-xl bg-sky-100 text-sky-800 px-2.5 py-1.5 text-xs font-extrabold"
+        >
+          <Volume2 className="w-3.5 h-3.5" /> Nghe gợi ý
+        </button>
+      </div>
+
+      <div className="flex items-center gap-3 bg-amber-50/70 rounded-2xl p-3">
+        <img
+          src={card.imageUrl}
+          alt={card.meaningVi}
+          className="w-16 h-16 object-contain rounded-xl bg-white p-1 shrink-0"
+        />
+        <div>
+          <p className="text-base font-extrabold text-slate-800">
+            {card.meaningVi}
+          </p>
+          <p className="text-xs font-semibold text-slate-500">
+            Chạm vào các ô bên dưới theo đúng thứ tự nhé
+          </p>
+        </div>
+      </div>
+
+      {/* Answer slots */}
+      <div
+        className={`min-h-[60px] rounded-2xl border-2 border-dashed p-2.5 flex flex-wrap items-center justify-center gap-2 ${
+          solved
+            ? "border-emerald-400 bg-emerald-50"
+            : shake
+            ? "border-rose-400 bg-rose-50 animate-wiggle"
+            : "border-slate-200 bg-slate-50"
+        }`}
+      >
+        {pickedTokens.length === 0 ? (
+          <span className="text-xs font-bold text-slate-400">
+            Chạm các thẻ chữ ở dưới để ghép...
+          </span>
+        ) : (
+          pickedTokens.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => removePicked(t.id)}
+              className="rounded-xl bg-emerald-500 text-white px-3.5 py-2 font-extrabold text-base shadow-[0_3px_0_#059669]"
+            >
+              {t.label}
+            </button>
+          ))
+        )}
+      </div>
+
+      {/* Available tiles */}
+      <div className="flex flex-wrap items-center justify-center gap-2">
+        {initialTiles.map((tile) => {
+          const used = pickedIds.includes(tile.id);
+          return (
+            <button
+              key={tile.id}
+              type="button"
+              disabled={used || solved}
+              onClick={() => tapPoolTile(tile)}
+              className={`btn-chunky rounded-2xl px-4 py-2.5 font-extrabold text-base border-2 transition ${
+                used
+                  ? "bg-slate-100 border-slate-100 text-transparent shadow-none"
+                  : "bg-white border-amber-200 text-slate-800 shadow-[0_3px_0_#FDE68A] hover:bg-amber-50"
+              }`}
+            >
+              {tile.label}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={handleHint}
+          disabled={solved}
+          className="inline-flex items-center gap-1 text-xs font-extrabold text-amber-700 hover:text-amber-900"
+        >
+          <HelpCircle className="w-4 h-4" /> Gợi ý 1 chữ
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================
+ * Mini-game 3: Lật thẻ Ghép cặp (Hình <-> Chữ)
+ * ======================================================= */
+interface MemoryTile {
+  uid: string;
+  cardId: string;
+  kind: "image" | "text";
+  card: LearningCard;
+}
+
+function MemoryMatchGame({
+  cards,
+  onResult,
+  onDone,
+}: {
+  cards: LearningCard[];
+  onResult: (cardId: string, outcome: ImplicitOutcome) => void;
+  onDone: (starsEarned: number) => void;
+}) {
+  const tiles = useMemo<MemoryTile[]>(() => {
+    const selected = cards.slice(0, 3);
+    const list: MemoryTile[] = [];
+    for (const c of selected) {
+      list.push({ uid: `${c.id}-img`, cardId: c.id, kind: "image", card: c });
+      list.push({ uid: `${c.id}-txt`, cardId: c.id, kind: "text", card: c });
+    }
+    return shuffle(list);
+  }, [cards]);
+
+  const [flipped, setFlipped] = useState<string[]>([]);
+  const [matchedCardIds, setMatchedCardIds] = useState<string[]>([]);
+  const [locked, setLocked] = useState(false);
+
+  const handleFlip = (tile: MemoryTile) => {
+    if (locked || flipped.includes(tile.uid) || matchedCardIds.includes(tile.cardId)) {
+      return;
+    }
+    playSfx("tap");
+    void playCardAudio(tile.card, "normal");
+
+    const nextFlipped = [...flipped, tile.uid];
+    setFlipped(nextFlipped);
+
+    if (nextFlipped.length === 2) {
+      setLocked(true);
+      const first = tiles.find((t) => t.uid === nextFlipped[0])!;
+      const second = tiles.find((t) => t.uid === nextFlipped[1])!;
+
+      if (first.cardId === second.cardId) {
+        playSfx("correct");
+        const nextMatched = [...matchedCardIds, first.cardId];
+        setMatchedCardIds(nextMatched);
+        onResult(first.cardId, { kind: "game", attempts: 1 });
+        window.setTimeout(() => {
+          setFlipped([]);
+          setLocked(false);
+          if (nextMatched.length === tiles.length / 2) {
+            onDone(2);
+          }
+        }, 500);
+      } else {
+        playSfx("tryAgain");
+        window.setTimeout(() => {
+          setFlipped([]);
+          setLocked(false);
+        }, 700);
+      }
+    }
+  };
+
+  return (
+    <div className="rounded-3xl bg-white border-2 border-violet-100 p-4 shadow-sm space-y-3 animate-pop-in">
+      <div className="flex items-center justify-between">
+        <span className="rounded-full bg-violet-100 text-violet-900 px-3 py-1 text-xs font-extrabold">
+          🃏 Lật thẻ ghép Hình & Chữ
+        </span>
+        <span className="text-xs font-bold text-slate-500">
+          Đã ghép {matchedCardIds.length}/{tiles.length / 2}
+        </span>
+      </div>
+
+      <div className="grid grid-cols-3 gap-2.5">
+        {tiles.map((tile) => {
+          const isMatched = matchedCardIds.includes(tile.cardId);
+          const isOpen = isMatched || flipped.includes(tile.uid);
+          return (
+            <button
+              key={tile.uid}
+              type="button"
+              onClick={() => handleFlip(tile)}
+              className={`h-24 rounded-2xl border-2 p-2 flex items-center justify-center transition-all ${
+                isMatched
+                  ? "border-emerald-400 bg-emerald-50"
+                  : isOpen
+                  ? "border-violet-400 bg-white shadow-sm"
+                  : "border-violet-200 bg-violet-500 text-white shadow-[0_4px_0_#6D28D9]"
+              }`}
+            >
+              {isOpen ? (
+                tile.kind === "image" ? (
+                  <img
+                    src={tile.card.imageUrl}
+                    alt={tile.card.meaningVi}
+                    className="w-16 h-16 object-contain"
+                  />
+                ) : (
+                  <span className="font-display text-base font-extrabold text-slate-800 text-center leading-tight">
+                    {tile.card.text}
+                  </span>
+                )
+              ) : (
+                <span className="text-2xl font-extrabold">?</span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================
+ * Mini-game 4: Nhìn hình - Đọc to
+ * ======================================================= */
+function SpeakFlashGame({
+  card,
+  onEvaluated,
+  onNext,
+}: {
+  card: LearningCard;
+  onEvaluated: (fb: PronunciationFeedback) => void;
+  onNext: (stars: number) => void;
+}) {
+  const [showText, setShowText] = useState(false);
+  const [earnedStars, setEarnedStars] = useState<number | null>(null);
+
+  return (
+    <div className="rounded-3xl bg-white border-2 border-emerald-100 p-4 shadow-sm space-y-3 animate-pop-in">
+      <div className="flex items-center justify-between">
+        <span className="rounded-full bg-emerald-100 text-emerald-800 px-3 py-1 text-xs font-extrabold">
+          🎤 Nhìn hình & Đọc to
+        </span>
+        <button
+          type="button"
+          onClick={() => setShowText((v) => !v)}
+          className="text-xs font-extrabold text-sky-700 hover:underline"
+        >
+          {showText ? "Ẩn chữ" : "Xem chữ gợi ý"}
+        </button>
+      </div>
+
+      <div className="flex flex-col items-center text-center bg-amber-50/60 rounded-2xl p-3">
+        <img
+          src={card.imageUrl}
+          alt={card.meaningVi}
+          className="w-28 h-28 object-contain mb-1"
+        />
+        <p className="text-sm font-extrabold text-slate-700">
+          {card.meaningVi}
+        </p>
+        {showText && (
+          <p className="font-display text-2xl font-extrabold text-emerald-700 mt-1">
+            {card.text}
+          </p>
+        )}
+      </div>
+
+      <PronunciationCoach
+        card={card}
+        compact
+        onEvaluated={(fb) => {
+          setEarnedStars(fb.stars);
+          setShowText(true);
+          onEvaluated(fb);
+        }}
+      />
+
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={() => onNext(earnedStars ?? 1)}
+          className="btn-chunky inline-flex items-center gap-1.5 rounded-2xl bg-amber-400 hover:bg-amber-500 text-amber-950 px-5 py-2.5 font-extrabold text-sm shadow-[0_4px_0_#D97706]"
+        >
+          <Sparkles className="w-4 h-4" />
+          {earnedStars ? "Tiếp tục" : "Bỏ qua & Tiếp tục"}
+        </button>
+      </div>
+    </div>
+  );
+}
