@@ -1,7 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Award, Gamepad2, Mic, Puzzle, Sparkles, Volume2 } from "lucide-react";
+import {
+  CheckCircle2,
+  ChevronRight,
+  Layers,
+  Mic,
+  Puzzle,
+  Volume2,
+} from "lucide-react";
 import { fetchActiveCurriculum } from "@/lib/client-curriculum";
 import {
   getAllProgress,
@@ -20,45 +27,35 @@ import type {
 import { BottomNav } from "./BottomNav";
 import { MiniGameArena, type MiniGameMode } from "./MiniGameArena";
 
-const GAME_MODES: Array<{
+const PRACTICE_MODES: Array<{
   id: MiniGameMode;
   title: string;
   desc: string;
-  badge: string;
   icon: typeof Volume2;
-  color: string;
 }> = [
   {
     id: "listen_pick",
     title: "Nghe & Chọn hình",
-    desc: "Luyện tai nghe âm chuẩn rồi chạm vào bức tranh đúng.",
-    badge: "Luyện nghe",
+    desc: "Luyện nghe âm chuẩn và chọn đúng hình minh họa.",
     icon: Volume2,
-    color: "bg-sky-50 border-sky-200 text-sky-900",
   },
   {
     id: "tile_build",
     title: "Xếp chữ / Ghép câu",
-    desc: "Chạm các mảnh chữ cái hoặc từ để ghép thành đáp án.",
-    badge: "Nhớ mặt chữ",
+    desc: "Chạm ghép các chữ cái hoặc từ theo đúng thứ tự.",
     icon: Puzzle,
-    color: "bg-amber-50 border-amber-200 text-amber-900",
   },
   {
     id: "memory_match",
-    title: "Lật thẻ Ghép cặp",
-    desc: "Tìm cặp Hình ảnh ↔ Chữ tiếng Anh giống nhau.",
-    badge: "Trí nhớ",
-    icon: Sparkles,
-    color: "bg-violet-50 border-violet-200 text-violet-900",
+    title: "Ghép cặp Hình – Chữ",
+    desc: "Lật thẻ tìm cặp hình ảnh và chữ tiếng Anh tương ứng.",
+    icon: Layers,
   },
   {
     id: "speak_flash",
     title: "Nhìn hình & Đọc to",
-    desc: "Phản xạ nhìn hình nói tiếng Anh và chấm phát âm.",
-    badge: "Luyện nói",
+    desc: "Luyện phản xạ nói tiếng Anh và chấm phát âm.",
     icon: Mic,
-    color: "bg-emerald-50 border-emerald-200 text-emerald-900",
   },
 ];
 
@@ -67,10 +64,10 @@ export function GamesHubClient() {
   const [progressMap, setProgressMap] = useState<
     Record<string, LearnerCardProgress>
   >({});
-  const [selectedUnitId, setSelectedUnitId] = useState<string>("all");
+  const [scope, setScope] = useState<"all" | "learned">("all");
   const [activeMode, setActiveMode] = useState<MiniGameMode | null>(null);
   const [gameCards, setGameCards] = useState<LearningCard[]>([]);
-  const [resultStars, setResultStars] = useState<number | null>(null);
+  const [finishedDone, setFinishedDone] = useState(false);
   const [nowMs, setNowMs] = useState<number | null>(null);
 
   useEffect(() => {
@@ -96,16 +93,15 @@ export function GamesHubClient() {
     [allCards, progressMap, nowMs]
   );
 
-  const startGameMode = (modeId: MiniGameMode) => {
+  const startPracticeMode = (modeId: MiniGameMode) => {
+    const learnedPool = allCards.filter(
+      (c) => (progressMap[c.id]?.attempts ?? 0) > 0
+    );
     const pool =
-      selectedUnitId === "all"
-        ? allCards
-        : curriculum.units
-            .find((u) => u.id === selectedUnitId)
-            ?.lessons.flatMap((l) => l.cards) ?? allCards;
+      scope === "learned" && learnedPool.length > 0 ? learnedPool : allCards;
     const picked = [...pool].sort(() => Math.random() - 0.5).slice(0, 5);
     setGameCards(picked);
-    setResultStars(null);
+    setFinishedDone(false);
     setActiveMode(modeId);
   };
 
@@ -117,52 +113,52 @@ export function GamesHubClient() {
 
   return (
     <div className="min-h-screen flex flex-col items-center">
-      <div className="w-full max-w-md min-h-screen pb-28 px-4 pt-4 space-y-4">
-        <header className="flex items-center justify-between">
-          <div>
-            <h1 className="font-display text-2xl font-extrabold text-slate-900">
-              Khu Trò Chơi Ôn Bài
-            </h1>
-            <p className="text-xs font-bold text-slate-500">
-              Chơi vui mà vẫn tích sao & cập nhật lịch ôn SRS
-            </p>
-          </div>
-          <div className="w-11 h-11 rounded-2xl bg-violet-100 text-violet-600 flex items-center justify-center">
-            <Gamepad2 className="w-6 h-6" />
-          </div>
+      <div className="w-full max-w-md min-h-screen pb-24 px-4 pt-5 space-y-4">
+        <header>
+          <h1 className="font-display text-xl font-extrabold text-slate-900">
+            Luyện tập
+          </h1>
+          <p className="text-xs font-semibold text-slate-500">
+            Chọn dạng bài tập để ôn nghe, nhớ chữ và phát âm
+          </p>
         </header>
 
-        {resultStars !== null ? (
-          <div className="rounded-3xl bg-white border-2 border-amber-200 p-6 text-center space-y-4 animate-pop-in">
-            <div className="w-16 h-16 rounded-3xl bg-amber-100 text-amber-500 flex items-center justify-center mx-auto">
-              <Award className="w-10 h-10" />
+        {finishedDone ? (
+          <div className="rounded-2xl bg-white border border-slate-200 p-5 space-y-4 animate-pop-in">
+            <div className="flex items-center gap-2.5">
+              <CheckCircle2 className="w-6 h-6 text-emerald-600 shrink-0" />
+              <div>
+                <h2 className="font-display text-base font-extrabold text-slate-900">
+                  Hoàn thành lượt luyện tập
+                </h2>
+                <p className="text-xs font-semibold text-slate-500">
+                  Kết quả đã được cập nhật vào lịch ôn SRS.
+                </p>
+              </div>
             </div>
-            <h2 className="font-display text-xl font-extrabold text-slate-900">
-              Chơi xuất sắc! +{resultStars} ⭐
-            </h2>
             <button
               type="button"
               onClick={() => {
-                setResultStars(null);
+                setFinishedDone(false);
                 setActiveMode(null);
               }}
-              className="btn-chunky w-full rounded-2xl bg-emerald-500 text-white py-3 font-extrabold text-sm shadow-[0_4px_0_#059669]"
+              className="w-full rounded-xl bg-emerald-600 text-white py-3 font-bold text-sm"
             >
-              Chọn trò chơi khác
+              Chọn bài tập khác
             </button>
           </div>
         ) : activeMode ? (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-extrabold text-violet-700">
-                {GAME_MODES.find((m) => m.id === activeMode)?.title}
+              <span className="text-xs font-bold text-slate-700">
+                {PRACTICE_MODES.find((m) => m.id === activeMode)?.title}
               </span>
               <button
                 type="button"
                 onClick={() => setActiveMode(null)}
                 className="text-xs font-bold text-slate-500 hover:underline"
               >
-                ← Đổi trò khác
+                ← Đổi bài tập
               </button>
             </div>
             <MiniGameArena
@@ -176,72 +172,60 @@ export function GamesHubClient() {
                   kind: "game",
                   cardsCount: gameCards.length,
                 });
-                setResultStars(starsEarned);
+                setFinishedDone(true);
                 setActiveMode(null);
               }}
             />
           </div>
         ) : (
           <>
-            {/* Unit filter */}
-            <div className="rounded-2xl bg-white border-2 border-amber-100 p-3 space-y-2">
-              <p className="text-xs font-extrabold text-slate-600">
-                Chọn chặng từ vựng để chơi:
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => setSelectedUnitId("all")}
-                  className={`rounded-xl px-3 py-1.5 text-xs font-extrabold ${
-                    selectedUnitId === "all"
-                      ? "bg-emerald-500 text-white"
-                      : "bg-slate-100 text-slate-600"
-                  }`}
-                >
-                  Tất cả chặng
-                </button>
-                {curriculum.units.map((u) => (
-                  <button
-                    key={u.id}
-                    type="button"
-                    onClick={() => setSelectedUnitId(u.id)}
-                    className={`rounded-xl px-3 py-1.5 text-xs font-extrabold ${
-                      selectedUnitId === u.id
-                        ? "bg-emerald-500 text-white"
-                        : "bg-slate-100 text-slate-600"
-                    }`}
-                  >
-                    {u.emoji} {u.title.split(":")[0]}
-                  </button>
-                ))}
-              </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setScope("all")}
+                className={`rounded-xl px-3 py-1.5 text-xs font-bold border ${
+                  scope === "all"
+                    ? "bg-emerald-600 border-emerald-600 text-white"
+                    : "bg-white border-slate-200 text-slate-600"
+                }`}
+              >
+                Tất cả thẻ
+              </button>
+              <button
+                type="button"
+                onClick={() => setScope("learned")}
+                className={`rounded-xl px-3 py-1.5 text-xs font-bold border ${
+                  scope === "learned"
+                    ? "bg-emerald-600 border-emerald-600 text-white"
+                    : "bg-white border-slate-200 text-slate-600"
+                }`}
+              >
+                Thẻ đã học
+              </button>
             </div>
 
-            {/* 4 Mini-game cards */}
-            <div className="grid grid-cols-1 gap-3">
-              {GAME_MODES.map((mode) => {
+            <div className="space-y-2.5">
+              {PRACTICE_MODES.map((mode) => {
                 const Icon = mode.icon;
                 return (
                   <button
                     key={mode.id}
                     type="button"
-                    onClick={() => startGameMode(mode.id)}
-                    className={`rounded-3xl border-2 p-4 text-left flex items-center gap-3.5 active:scale-[0.99] transition ${mode.color}`}
+                    onClick={() => startPracticeMode(mode.id)}
+                    className="w-full rounded-2xl border border-slate-200 bg-white hover:border-emerald-300 p-3.5 text-left flex items-center gap-3 active:scale-[0.99] transition"
                   >
-                    <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center shadow-xs shrink-0">
-                      <Icon className="w-6 h-6" />
+                    <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center shrink-0">
+                      <Icon className="w-5 h-5" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <span className="inline-block rounded-full bg-white/80 px-2 py-0.5 text-[10px] font-extrabold mb-0.5">
-                        {mode.badge}
-                      </span>
-                      <h2 className="font-display text-lg font-extrabold leading-tight">
+                      <h2 className="text-sm font-extrabold text-slate-900">
                         {mode.title}
                       </h2>
-                      <p className="text-xs font-semibold opacity-80">
+                      <p className="text-xs font-semibold text-slate-500">
                         {mode.desc}
                       </p>
                     </div>
+                    <ChevronRight className="w-5 h-5 text-slate-400 shrink-0" />
                   </button>
                 );
               })}

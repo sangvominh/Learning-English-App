@@ -1,20 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, Download, Flame, Star, Trash2 } from "lucide-react";
+import { AlertTriangle, Download, Trash2 } from "lucide-react";
 import {
   exportLearnerSnapshot,
   getAllProgress,
-  getProfile,
   resetAllLearnerData,
 } from "@/lib/learner-db";
 import { flattenCards } from "@/lib/seed-curriculum";
 import { computeMasteryLevel, formatIntervalVi, isCardDue } from "@/lib/srs";
-import type {
-  CurriculumData,
-  LearnerCardProgress,
-  LearnerProfile,
-} from "@/lib/types";
+import type { CurriculumData, LearnerCardProgress } from "@/lib/types";
 
 export function ParentInsights({
   curriculum,
@@ -24,22 +19,19 @@ export function ParentInsights({
   const [progressMap, setProgressMap] = useState<
     Record<string, LearnerCardProgress>
   >({});
-  const [profile, setProfile] = useState<LearnerProfile | null>(null);
   const [nowMs, setNowMs] = useState<number | null>(null);
 
   const loadStats = async () => {
-    const [prog, prof] = await Promise.all([getAllProgress(), getProfile()]);
+    const prog = await getAllProgress();
     setProgressMap(prog);
-    setProfile(prof);
     setNowMs(Date.now());
   };
 
   useEffect(() => {
     let active = true;
-    Promise.all([getAllProgress(), getProfile()]).then(([prog, prof]) => {
+    getAllProgress().then((prog) => {
       if (!active) return;
       setProgressMap(prog);
-      setProfile(prof);
       setNowMs(Date.now());
     });
     return () => {
@@ -104,7 +96,7 @@ export function ParentInsights({
   const handleReset = async () => {
     if (
       window.confirm(
-        "Xóa toàn bộ tiến độ, sao và lịch ôn SRS trên thiết bị này?"
+        "Xóa toàn bộ tiến độ và lịch ôn SRS trên thiết bị này?"
       )
     ) {
       await resetAllLearnerData();
@@ -115,34 +107,22 @@ export function ParentInsights({
   return (
     <div className="space-y-4">
       <div className="rounded-2xl bg-sky-50 border border-sky-200 p-3 text-xs font-semibold text-sky-900">
-        ℹ️ Lưu ý: Vì app không dùng tài khoản, dữ liệu tiến độ & lịch ôn SRS được
-        lưu ngay trên thiết bị đang mở. Hãy mở mục này trên chính điện thoại bé
-        học để xem sát nhất!
+        Dữ liệu tiến độ & lịch ôn SRS được lưu trực tiếp trên thiết bị bé học.
+        Mở mục này trên điện thoại của bé để theo dõi chính xác nhất.
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="rounded-2xl bg-white border border-slate-200 p-3.5">
-          <p className="text-xs font-bold text-slate-500">Tổng sao bé đạt</p>
-          <p className="font-display text-2xl font-extrabold text-amber-600 flex items-center gap-1 mt-1">
-            <Star className="w-5 h-5 fill-amber-400 text-amber-500" />
-            {profile?.totalStars ?? 0}
-          </p>
-        </div>
-        <div className="rounded-2xl bg-white border border-slate-200 p-3.5">
-          <p className="text-xs font-bold text-slate-500">Chuỗi ngày học</p>
-          <p className="font-display text-2xl font-extrabold text-orange-600 flex items-center gap-1 mt-1">
-            <Flame className="w-5 h-5 fill-orange-500 text-orange-500" />
-            {profile?.streakDays ?? 0} ngày
-          </p>
-        </div>
-        <div className="rounded-2xl bg-white border border-slate-200 p-3.5">
-          <p className="text-xs font-bold text-slate-500">Thẻ đã học / Đang đến hạn</p>
+          <p className="text-xs font-bold text-slate-500">Thẻ đã học</p>
           <p className="font-display text-2xl font-extrabold text-emerald-700 mt-1">
-            {stats.studiedCount}/{allCards.length}{" "}
-            <span className="text-sm text-orange-600">
-              ({stats.dueNow} cần ôn)
-            </span>
+            {stats.studiedCount}/{allCards.length}
+          </p>
+        </div>
+        <div className="rounded-2xl bg-white border border-slate-200 p-3.5">
+          <p className="text-xs font-bold text-slate-500">Cần ôn hôm nay</p>
+          <p className="font-display text-2xl font-extrabold text-orange-600 mt-1">
+            {stats.dueNow} thẻ
           </p>
         </div>
         <div className="rounded-2xl bg-white border border-slate-200 p-3.5">
@@ -157,12 +137,11 @@ export function ParentInsights({
       <div className="rounded-2xl bg-white border border-slate-200 p-4 space-y-3">
         <h2 className="font-display text-base font-extrabold text-slate-900 flex items-center gap-2">
           <AlertTriangle className="w-4 h-4 text-orange-500" />
-          Âm & Từ bé cần luyện thêm
+          Âm & Từ cần luyện thêm
         </h2>
         {stats.weakCards.length === 0 ? (
           <p className="text-xs font-semibold text-slate-500">
-            Chưa phát hiện âm/từ nào hay nhầm (hoặc bé chưa hoàn thành bài học
-            trên máy này).
+            Chưa ghi nhận âm hoặc từ nào cần chú ý trên thiết bị này.
           </p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">

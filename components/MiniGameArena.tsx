@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, HelpCircle, Sparkles, Turtle, Volume2 } from "lucide-react";
+import { CheckCircle2, HelpCircle, Turtle, Volume2 } from "lucide-react";
 import { playCardAudio, playSfx } from "@/lib/audio-player";
 import type {
   ImplicitOutcome,
@@ -50,12 +50,12 @@ function buildQueue(
     "speak_flash",
     "memory_match",
   ];
-  const modes = preferredModes && preferredModes.length > 0 ? preferredModes : defaultOrder;
+  const modes =
+    preferredModes && preferredModes.length > 0 ? preferredModes : defaultOrder;
 
   const list: GameChallenge[] = [];
   cards.forEach((card, idx) => {
     let mode = modes[idx % modes.length];
-    // memory_match works best once per round if we have at least 3 cards
     if (mode === "memory_match" && cards.length < 2) {
       mode = "listen_pick";
     }
@@ -66,7 +66,6 @@ function buildQueue(
     });
   });
 
-  // Ensure at most one memory_match block per session to keep pacing snappy
   let seenMemory = false;
   return list.map((item, idx) => {
     if (item.mode === "memory_match") {
@@ -102,7 +101,7 @@ export function MiniGameArena({
     setCompletedRounds(nextCompleted);
 
     if (index + 1 >= queue.length) {
-      playSfx("fanfare");
+      playSfx("correct");
       onComplete({ totalRounds: nextCompleted, starsEarned: nextStars });
     } else {
       setIndex((i) => i + 1);
@@ -132,17 +131,16 @@ export function MiniGameArena({
   const progressPct = Math.round(((index + 1) / queue.length) * 100);
 
   return (
-    <div className="space-y-4">
-      {/* Round progress bar */}
+    <div className="space-y-3.5">
       <div className="flex items-center gap-3">
-        <div className="flex-1 h-3 rounded-full bg-amber-100 overflow-hidden">
+        <div className="flex-1 h-2.5 rounded-full bg-slate-200 overflow-hidden">
           <div
-            className="h-full bg-emerald-500 rounded-full transition-all duration-300"
+            className="h-full bg-emerald-600 rounded-full transition-all duration-300"
             style={{ width: `${progressPct}%` }}
           />
         </div>
-        <span className="text-xs font-extrabold text-slate-600 shrink-0">
-          Trò {index + 1}/{queue.length} • ⭐ +{starsEarned}
+        <span className="text-xs font-bold text-slate-600 shrink-0">
+          Câu {index + 1}/{queue.length}
         </span>
       </div>
 
@@ -199,7 +197,7 @@ export function MiniGameArena({
 }
 
 /* =========================================================
- * Mini-game 1: Nghe và Chọn hình
+ * Bài tập 1: Nghe & Chọn hình
  * ======================================================= */
 function ListenPickGame({
   card,
@@ -219,7 +217,6 @@ function ListenPickGame({
           c.text.toLowerCase() !== card.text.toLowerCase()
       )
     ).slice(0, 3);
-    // Fallback if pool is tiny
     const fillers =
       uniqueOthers.length < 3
         ? pool.filter((c) => c.id !== card.id).slice(0, 3 - uniqueOthers.length)
@@ -256,7 +253,7 @@ function ListenPickGame({
           },
           nextAttempts > 1
         );
-      }, 650);
+      }, 600);
     } else {
       playSfx("tryAgain");
       setWrongIds((prev) => [...prev, opt.id]);
@@ -264,24 +261,24 @@ function ListenPickGame({
   };
 
   return (
-    <div className="rounded-3xl bg-white border-2 border-sky-100 p-4 shadow-sm space-y-4 animate-pop-in">
+    <div className="rounded-2xl bg-white border border-slate-200 p-4 space-y-3.5 animate-pop-in">
       <div className="text-center space-y-2">
-        <span className="inline-block rounded-full bg-sky-100 text-sky-800 px-3 py-1 text-xs font-extrabold">
-          👂 Nghe & Chọn hình đúng
+        <span className="inline-block rounded-lg bg-slate-100 text-slate-700 px-2.5 py-1 text-xs font-bold">
+          Nghe & Chọn hình đúng
         </span>
         <div className="flex items-center justify-center gap-2">
           <button
             type="button"
             onClick={() => void playCardAudio(card, "normal")}
-            className="btn-chunky inline-flex items-center gap-2 rounded-2xl bg-sky-500 text-white px-5 py-3 font-extrabold text-base shadow-[0_4px_0_#0284C7]"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-sky-600 text-white px-4 py-2.5 font-bold text-sm"
           >
-            <Volume2 className="w-5 h-5" />
+            <Volume2 className="w-4 h-4" />
             Nghe lại
           </button>
           <button
             type="button"
             onClick={() => void playCardAudio(card, "slow")}
-            className="btn-chunky inline-flex items-center gap-1.5 rounded-2xl bg-amber-100 text-amber-900 px-3.5 py-3 font-extrabold text-sm shadow-[0_4px_0_#FCD34D]"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-slate-100 text-slate-800 px-3.5 py-2.5 font-bold text-xs"
           >
             <Turtle className="w-4 h-4" />
             Chậm
@@ -299,22 +296,22 @@ function ListenPickGame({
               type="button"
               disabled={solved || isWrong}
               onClick={() => handlePick(opt)}
-              className={`rounded-3xl border-2 p-3 flex flex-col items-center justify-center gap-2 transition-all ${
+              className={`rounded-2xl border p-3 flex flex-col items-center justify-center gap-1.5 transition-all ${
                 isRight
-                  ? "border-emerald-500 bg-emerald-50 scale-[1.02] shadow-md"
+                  ? "border-emerald-500 bg-emerald-50"
                   : isWrong
                   ? "border-rose-200 bg-rose-50/60 opacity-45 animate-wiggle"
-                  : "border-slate-100 bg-amber-50/30 hover:border-sky-300 active:scale-95"
+                  : "border-slate-200 bg-slate-50/50 hover:border-sky-300 active:scale-95"
               }`}
             >
               <img
                 src={opt.imageUrl}
                 alt={opt.meaningVi}
-                className="w-24 h-24 object-contain rounded-2xl"
+                className="w-24 h-24 object-contain rounded-xl"
               />
               {isRight && (
-                <span className="inline-flex items-center gap-1 text-sm font-extrabold text-emerald-700">
-                  <CheckCircle2 className="w-4 h-4" /> {opt.text}
+                <span className="inline-flex items-center gap-1 text-xs font-extrabold text-emerald-700">
+                  <CheckCircle2 className="w-3.5 h-3.5" /> {opt.text}
                 </span>
               )}
             </button>
@@ -326,7 +323,7 @@ function ListenPickGame({
 }
 
 /* =========================================================
- * Mini-game 2: Ghép chữ / Ghép câu
+ * Bài tập 2: Xếp chữ / Ghép câu
  * ======================================================= */
 interface TileToken {
   id: string;
@@ -354,7 +351,6 @@ function TileBuildGame({
       id: `real-${idx}-${label}`,
       label,
     }));
-    // Add 1-2 gentle distractors for short phonics/words
     const extras: TileToken[] = [];
     if (!isSentence && targetUnits.length <= 4) {
       const candidates = ["s", "a", "t", "p", "i", "n", "o", "e"].filter(
@@ -405,7 +401,7 @@ function TileBuildGame({
           },
           nextAttempts > 1
         );
-      }, 750);
+      }, 650);
     } else {
       playSfx("tryAgain");
       setShake(true);
@@ -449,39 +445,38 @@ function TileBuildGame({
   };
 
   return (
-    <div className="rounded-3xl bg-white border-2 border-amber-100 p-4 shadow-sm space-y-4 animate-pop-in">
+    <div className="rounded-2xl bg-white border border-slate-200 p-4 space-y-3.5 animate-pop-in">
       <div className="flex items-center justify-between">
-        <span className="rounded-full bg-amber-100 text-amber-900 px-3 py-1 text-xs font-extrabold">
-          🧩 {isSentence ? "Xếp thành câu đúng" : "Ghép chữ đúng"}
+        <span className="rounded-lg bg-slate-100 text-slate-700 px-2.5 py-1 text-xs font-bold">
+          {isSentence ? "Xếp thành câu đúng" : "Xếp chữ đúng"}
         </span>
         <button
           type="button"
           onClick={() => void playCardAudio(card, "normal")}
-          className="inline-flex items-center gap-1 rounded-xl bg-sky-100 text-sky-800 px-2.5 py-1.5 text-xs font-extrabold"
+          className="inline-flex items-center gap-1 rounded-lg bg-sky-50 text-sky-700 px-2.5 py-1 text-xs font-bold"
         >
           <Volume2 className="w-3.5 h-3.5" /> Nghe gợi ý
         </button>
       </div>
 
-      <div className="flex items-center gap-3 bg-amber-50/70 rounded-2xl p-3">
+      <div className="flex items-center gap-3 bg-slate-50 rounded-xl p-2.5">
         <img
           src={card.imageUrl}
           alt={card.meaningVi}
-          className="w-16 h-16 object-contain rounded-xl bg-white p-1 shrink-0"
+          className="w-14 h-14 object-contain rounded-lg bg-white p-1 shrink-0"
         />
         <div>
-          <p className="text-base font-extrabold text-slate-800">
+          <p className="text-sm font-extrabold text-slate-800">
             {card.meaningVi}
           </p>
           <p className="text-xs font-semibold text-slate-500">
-            Chạm vào các ô bên dưới theo đúng thứ tự nhé
+            Chạm các thẻ bên dưới theo đúng thứ tự
           </p>
         </div>
       </div>
 
-      {/* Answer slots */}
       <div
-        className={`min-h-[60px] rounded-2xl border-2 border-dashed p-2.5 flex flex-wrap items-center justify-center gap-2 ${
+        className={`min-h-[56px] rounded-xl border-2 border-dashed p-2 flex flex-wrap items-center justify-center gap-2 ${
           solved
             ? "border-emerald-400 bg-emerald-50"
             : shake
@@ -490,8 +485,8 @@ function TileBuildGame({
         }`}
       >
         {pickedTokens.length === 0 ? (
-          <span className="text-xs font-bold text-slate-400">
-            Chạm các thẻ chữ ở dưới để ghép...
+          <span className="text-xs font-semibold text-slate-400">
+            Chạm các ô chữ ở dưới...
           </span>
         ) : (
           pickedTokens.map((t) => (
@@ -499,7 +494,7 @@ function TileBuildGame({
               key={t.id}
               type="button"
               onClick={() => removePicked(t.id)}
-              className="rounded-xl bg-emerald-500 text-white px-3.5 py-2 font-extrabold text-base shadow-[0_3px_0_#059669]"
+              className="rounded-lg bg-emerald-600 text-white px-3 py-1.5 font-extrabold text-sm"
             >
               {t.label}
             </button>
@@ -507,7 +502,6 @@ function TileBuildGame({
         )}
       </div>
 
-      {/* Available tiles */}
       <div className="flex flex-wrap items-center justify-center gap-2">
         {initialTiles.map((tile) => {
           const used = pickedIds.includes(tile.id);
@@ -517,10 +511,10 @@ function TileBuildGame({
               type="button"
               disabled={used || solved}
               onClick={() => tapPoolTile(tile)}
-              className={`btn-chunky rounded-2xl px-4 py-2.5 font-extrabold text-base border-2 transition ${
+              className={`rounded-xl px-3.5 py-2 font-extrabold text-sm border transition ${
                 used
-                  ? "bg-slate-100 border-slate-100 text-transparent shadow-none"
-                  : "bg-white border-amber-200 text-slate-800 shadow-[0_3px_0_#FDE68A] hover:bg-amber-50"
+                  ? "bg-slate-100 border-slate-100 text-transparent"
+                  : "bg-white border-slate-300 text-slate-800 hover:bg-slate-50 active:scale-95"
               }`}
             >
               {tile.label}
@@ -534,9 +528,9 @@ function TileBuildGame({
           type="button"
           onClick={handleHint}
           disabled={solved}
-          className="inline-flex items-center gap-1 text-xs font-extrabold text-amber-700 hover:text-amber-900"
+          className="inline-flex items-center gap-1 text-xs font-bold text-slate-600 hover:text-slate-900"
         >
-          <HelpCircle className="w-4 h-4" /> Gợi ý 1 chữ
+          <HelpCircle className="w-3.5 h-3.5" /> Gợi ý 1 chữ
         </button>
       </div>
     </div>
@@ -544,7 +538,7 @@ function TileBuildGame({
 }
 
 /* =========================================================
- * Mini-game 3: Lật thẻ Ghép cặp (Hình <-> Chữ)
+ * Bài tập 3: Lật thẻ Ghép cặp (Hình <-> Chữ)
  * ======================================================= */
 interface MemoryTile {
   uid: string;
@@ -577,7 +571,11 @@ function MemoryMatchGame({
   const [locked, setLocked] = useState(false);
 
   const handleFlip = (tile: MemoryTile) => {
-    if (locked || flipped.includes(tile.uid) || matchedCardIds.includes(tile.cardId)) {
+    if (
+      locked ||
+      flipped.includes(tile.uid) ||
+      matchedCardIds.includes(tile.cardId)
+    ) {
       return;
     }
     playSfx("tap");
@@ -602,25 +600,25 @@ function MemoryMatchGame({
           if (nextMatched.length === tiles.length / 2) {
             onDone(2);
           }
-        }, 500);
+        }, 450);
       } else {
         playSfx("tryAgain");
         window.setTimeout(() => {
           setFlipped([]);
           setLocked(false);
-        }, 700);
+        }, 650);
       }
     }
   };
 
   return (
-    <div className="rounded-3xl bg-white border-2 border-violet-100 p-4 shadow-sm space-y-3 animate-pop-in">
+    <div className="rounded-2xl bg-white border border-slate-200 p-4 space-y-3 animate-pop-in">
       <div className="flex items-center justify-between">
-        <span className="rounded-full bg-violet-100 text-violet-900 px-3 py-1 text-xs font-extrabold">
-          🃏 Lật thẻ ghép Hình & Chữ
+        <span className="rounded-lg bg-slate-100 text-slate-700 px-2.5 py-1 text-xs font-bold">
+          Ghép cặp Hình – Chữ
         </span>
         <span className="text-xs font-bold text-slate-500">
-          Đã ghép {matchedCardIds.length}/{tiles.length / 2}
+          {matchedCardIds.length}/{tiles.length / 2}
         </span>
       </div>
 
@@ -633,12 +631,12 @@ function MemoryMatchGame({
               key={tile.uid}
               type="button"
               onClick={() => handleFlip(tile)}
-              className={`h-24 rounded-2xl border-2 p-2 flex items-center justify-center transition-all ${
+              className={`h-24 rounded-xl border p-2 flex items-center justify-center transition-all ${
                 isMatched
                   ? "border-emerald-400 bg-emerald-50"
                   : isOpen
-                  ? "border-violet-400 bg-white shadow-sm"
-                  : "border-violet-200 bg-violet-500 text-white shadow-[0_4px_0_#6D28D9]"
+                  ? "border-slate-300 bg-white"
+                  : "border-slate-300 bg-slate-100 text-slate-500"
               }`}
             >
               {isOpen ? (
@@ -649,12 +647,12 @@ function MemoryMatchGame({
                     className="w-16 h-16 object-contain"
                   />
                 ) : (
-                  <span className="font-display text-base font-extrabold text-slate-800 text-center leading-tight">
+                  <span className="font-display text-sm font-extrabold text-slate-800 text-center leading-tight">
                     {tile.card.text}
                   </span>
                 )
               ) : (
-                <span className="text-2xl font-extrabold">?</span>
+                <span className="text-lg font-extrabold">?</span>
               )}
             </button>
           );
@@ -665,7 +663,7 @@ function MemoryMatchGame({
 }
 
 /* =========================================================
- * Mini-game 4: Nhìn hình - Đọc to
+ * Bài tập 4: Nhìn hình & Đọc to
  * ======================================================= */
 function SpeakFlashGame({
   card,
@@ -677,32 +675,30 @@ function SpeakFlashGame({
   onNext: (stars: number) => void;
 }) {
   const [showText, setShowText] = useState(false);
-  const [earnedStars, setEarnedStars] = useState<number | null>(null);
+  const [doneSpeaking, setDoneSpeaking] = useState(false);
 
   return (
-    <div className="rounded-3xl bg-white border-2 border-emerald-100 p-4 shadow-sm space-y-3 animate-pop-in">
+    <div className="rounded-2xl bg-white border border-slate-200 p-4 space-y-3 animate-pop-in">
       <div className="flex items-center justify-between">
-        <span className="rounded-full bg-emerald-100 text-emerald-800 px-3 py-1 text-xs font-extrabold">
-          🎤 Nhìn hình & Đọc to
+        <span className="rounded-lg bg-slate-100 text-slate-700 px-2.5 py-1 text-xs font-bold">
+          Nhìn hình & Đọc to
         </span>
         <button
           type="button"
           onClick={() => setShowText((v) => !v)}
-          className="text-xs font-extrabold text-sky-700 hover:underline"
+          className="text-xs font-bold text-sky-700 hover:underline"
         >
-          {showText ? "Ẩn chữ" : "Xem chữ gợi ý"}
+          {showText ? "Ẩn chữ" : "Xem chữ"}
         </button>
       </div>
 
-      <div className="flex flex-col items-center text-center bg-amber-50/60 rounded-2xl p-3">
+      <div className="flex flex-col items-center text-center bg-slate-50 rounded-xl p-3">
         <img
           src={card.imageUrl}
           alt={card.meaningVi}
-          className="w-28 h-28 object-contain mb-1"
+          className="w-24 h-24 object-contain mb-1"
         />
-        <p className="text-sm font-extrabold text-slate-700">
-          {card.meaningVi}
-        </p>
+        <p className="text-sm font-bold text-slate-700">{card.meaningVi}</p>
         {showText && (
           <p className="font-display text-2xl font-extrabold text-emerald-700 mt-1">
             {card.text}
@@ -714,7 +710,7 @@ function SpeakFlashGame({
         card={card}
         compact
         onEvaluated={(fb) => {
-          setEarnedStars(fb.stars);
+          setDoneSpeaking(true);
           setShowText(true);
           onEvaluated(fb);
         }}
@@ -723,11 +719,10 @@ function SpeakFlashGame({
       <div className="flex justify-end">
         <button
           type="button"
-          onClick={() => onNext(earnedStars ?? 1)}
-          className="btn-chunky inline-flex items-center gap-1.5 rounded-2xl bg-amber-400 hover:bg-amber-500 text-amber-950 px-5 py-2.5 font-extrabold text-sm shadow-[0_4px_0_#D97706]"
+          onClick={() => onNext(doneSpeaking ? 2 : 1)}
+          className="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 font-bold text-xs"
         >
-          <Sparkles className="w-4 h-4" />
-          {earnedStars ? "Tiếp tục" : "Bỏ qua & Tiếp tục"}
+          {doneSpeaking ? "Tiếp tục" : "Bỏ qua"}
         </button>
       </div>
     </div>

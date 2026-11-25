@@ -3,9 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import {
   Headphones,
+  Loader2,
   Mic,
   RotateCcw,
-  Sparkles,
   Square,
   Turtle,
   Volume2,
@@ -135,7 +135,7 @@ export function PronunciationCoach({
       setFeedback(data.feedback);
       setAssessMode(data.mode || "");
       setStatus("done");
-      playSfx(data.feedback.stars >= 2 ? "star" : "tap");
+      playSfx(data.feedback.stars >= 2 ? "correct" : "tap");
       onEvaluated?.(data.feedback);
     } catch (err) {
       setErrorMsg(
@@ -166,7 +166,7 @@ export function PronunciationCoach({
       !navigator.mediaDevices.getUserMedia
     ) {
       setErrorMsg(
-        "Trình duyệt đang chặn Micro (do truy cập qua HTTP thường thay vì HTTPS). Bố/mẹ xem hướng dẫn bật quyền Mic hoặc deploy HTTPS trong góc Phụ huynh nhé."
+        "Trình duyệt đang chặn Micro (do truy cập qua HTTP thường thay vì HTTPS). Bố/mẹ xem hướng dẫn bật quyền Mic hoặc deploy HTTPS trong Quản trị nhé."
       );
       setStatus("error");
       return;
@@ -181,7 +181,6 @@ export function PronunciationCoach({
       });
       streamRef.current = stream;
 
-      // Setup live waveform visualizer
       const Ctx =
         window.AudioContext ||
         (window as unknown as { webkitAudioContext?: typeof AudioContext })
@@ -209,7 +208,6 @@ export function PronunciationCoach({
         animRef.current = window.requestAnimationFrame(tick);
       }
 
-      // Optional browser SpeechRecognition hint for non-Gemini fallback
       const SpeechRec =
         (
           window as unknown as {
@@ -269,14 +267,13 @@ export function PronunciationCoach({
       recorder.start();
       setStatus("recording");
 
-      // Auto-stop after 5.5 seconds for kids
       timerRef.current = window.setTimeout(() => {
         stopRecording();
       }, 5500);
     } catch {
       cleanupRecording();
       setErrorMsg(
-        "Chưa mở được Micro. Bé hãy bấm 'Cho phép' Micro hoặc kiểm tra quyền trình duyệt nhé."
+        "Chưa mở được Micro. Hãy bấm 'Cho phép' Micro hoặc kiểm tra quyền trình duyệt."
       );
       setStatus("error");
     }
@@ -293,8 +290,9 @@ export function PronunciationCoach({
       score: 80,
       stars: 2,
       heardText: card.text,
-      praiseVi: "Tuyệt vời! Con đã luyện đọc to theo mẫu!",
-      correctionVi: "Hãy nghe lại giọng mẫu thêm một lần để nhớ âm cuối thật lâu nhé.",
+      praiseVi: "Đã ghi nhận lượt đọc theo mẫu.",
+      correctionVi:
+        "Hãy nghe lại giọng mẫu thêm một lần để nhớ âm đầu và âm cuối.",
       mouthTipVi: card.pronunciationTipVi,
       segments: card.text
         .split(/\s+/)
@@ -303,22 +301,21 @@ export function PronunciationCoach({
     setFeedback(fallback);
     setStatus("done");
     setErrorMsg("");
-    playSfx("star");
     onEvaluated?.(fallback);
   };
 
   return (
     <div
-      className={`rounded-3xl bg-white border-2 border-amber-100 shadow-sm ${
-        compact ? "p-3.5" : "p-4"
+      className={`rounded-2xl bg-white border border-slate-200 ${
+        compact ? "p-3" : "p-3.5"
       }`}
     >
       {/* Audio controls */}
-      <div className="flex items-center justify-center gap-2.5 mb-3">
+      <div className="flex items-center justify-center gap-2 mb-2.5">
         <button
           type="button"
           onClick={() => void playCardAudio(card, "normal")}
-          className="btn-chunky flex-1 flex items-center justify-center gap-2 rounded-2xl bg-sky-500 hover:bg-sky-600 text-white py-2.5 px-3 font-extrabold text-sm shadow-[0_4px_0_#0284C7]"
+          className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white py-2.5 px-3 font-bold text-xs"
         >
           <Volume2 className="w-4 h-4 shrink-0" />
           Nghe mẫu
@@ -326,7 +323,7 @@ export function PronunciationCoach({
         <button
           type="button"
           onClick={() => void playCardAudio(card, "slow")}
-          className="btn-chunky flex items-center justify-center gap-1.5 rounded-2xl bg-amber-100 hover:bg-amber-200 text-amber-900 py-2.5 px-3.5 font-extrabold text-sm shadow-[0_4px_0_#FCD34D]"
+          className="flex items-center justify-center gap-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 py-2.5 px-3 font-bold text-xs"
         >
           <Turtle className="w-4 h-4 shrink-0" />
           Đọc chậm
@@ -335,7 +332,7 @@ export function PronunciationCoach({
           <button
             type="button"
             onClick={playChildVoice}
-            className="btn-chunky flex items-center justify-center gap-1.5 rounded-2xl bg-violet-100 hover:bg-violet-200 text-violet-900 py-2.5 px-3 font-extrabold text-sm shadow-[0_4px_0_#DDD6FE]"
+            className="flex items-center justify-center gap-1.5 rounded-xl bg-violet-100 hover:bg-violet-200 text-violet-900 py-2.5 px-3 font-bold text-xs"
           >
             <Headphones className="w-4 h-4 shrink-0" />
             Giọng con
@@ -349,11 +346,11 @@ export function PronunciationCoach({
           <button
             type="button"
             onClick={stopRecording}
-            className="animate-mic-pulse w-full rounded-2xl bg-orange-500 text-white py-3.5 px-4 flex items-center justify-center gap-3 font-extrabold text-base shadow-md"
+            className="animate-mic-pulse w-full rounded-xl bg-orange-500 text-white py-3 px-4 flex items-center justify-center gap-2.5 font-bold text-sm"
           >
-            <Square className="w-5 h-5 fill-current" />
-            <span>Đang nghe con đọc... (Bấm để dừng)</span>
-            <span className="flex items-end gap-1 h-5">
+            <Square className="w-4 h-4 fill-current" />
+            <span>Đang thu âm... (Bấm để dừng)</span>
+            <span className="flex items-end gap-1 h-4">
               {levels.map((lv, i) => (
                 <span
                   key={i}
@@ -364,55 +361,46 @@ export function PronunciationCoach({
             </span>
           </button>
         ) : status === "analyzing" ? (
-          <div className="w-full rounded-2xl bg-amber-50 border-2 border-amber-200 py-3.5 px-4 flex items-center justify-center gap-2 text-amber-800 font-extrabold text-sm">
-            <Sparkles className="w-5 h-5 animate-spin" />
-            Cô SunnyBee đang nghe và chấm phát âm...
+          <div className="w-full rounded-xl bg-slate-50 border border-slate-200 py-3 px-4 flex items-center justify-center gap-2 text-slate-700 font-bold text-xs">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            Đang phân tích phát âm...
           </div>
         ) : (
           <button
             type="button"
             onClick={startRecording}
-            className="btn-chunky w-full rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white py-3.5 px-4 flex items-center justify-center gap-2.5 font-extrabold text-base shadow-[0_4px_0_#059669]"
+            className="w-full rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white py-3 px-4 flex items-center justify-center gap-2 font-bold text-sm"
           >
-            <Mic className="w-5 h-5" />
-            {feedback ? "Đọc lại để đạt 3 sao" : "Bấm vào đây & Đọc to"}
+            <Mic className="w-4 h-4" />
+            {feedback ? "Đọc lại" : "Bấm để đọc"}
           </button>
         )}
       </div>
 
       {/* Error Box */}
       {status === "error" && errorMsg && (
-        <div className="mt-3 rounded-2xl bg-rose-50 border border-rose-200 p-3 text-xs text-rose-800 space-y-2">
-          <p className="font-bold">{errorMsg}</p>
+        <div className="mt-2.5 rounded-xl bg-rose-50 border border-rose-200 p-3 text-xs text-rose-800 space-y-2">
+          <p className="font-semibold">{errorMsg}</p>
           <button
             type="button"
             onClick={handleSelfPracticePass}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-white border border-rose-200 px-3 py-1.5 font-extrabold text-rose-700 hover:bg-rose-100"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-white border border-rose-200 px-3 py-1.5 font-bold text-rose-700 hover:bg-rose-100"
           >
             <RotateCcw className="w-3.5 h-3.5" />
-            Con đã tự đọc to theo mẫu rồi
+            Đã tự đọc theo mẫu
           </button>
         </div>
       )}
 
       {/* Feedback Box */}
       {status === "done" && feedback && (
-        <div className="mt-3 rounded-2xl bg-emerald-50/70 border-2 border-emerald-200 p-3.5 space-y-2.5 animate-pop-in">
+        <div className="mt-3 rounded-xl bg-slate-50 border border-slate-200 p-3 space-y-2 animate-pop-in">
           <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-1 text-xl">
-              {[1, 2, 3].map((s) => (
-                <span
-                  key={s}
-                  className={
-                    s <= feedback.stars ? "opacity-100" : "opacity-25 grayscale"
-                  }
-                >
-                  ⭐
-                </span>
-              ))}
-            </div>
-            <span className="rounded-full bg-white px-2.5 py-0.5 text-xs font-extrabold text-emerald-800 border border-emerald-200">
-              {feedback.score}/100 điểm
+            <span className="text-xs font-extrabold text-slate-700">
+              Kết quả phát âm
+            </span>
+            <span className="rounded-lg bg-white px-2.5 py-0.5 text-xs font-extrabold text-emerald-800 border border-emerald-200">
+              {feedback.score}/100
               {assessMode === "self-check" ? " • Tự luyện" : ""}
             </span>
           </div>
@@ -429,7 +417,7 @@ export function PronunciationCoach({
                 return (
                   <span
                     key={`${seg.text}-${i}`}
-                    className={`rounded-xl border px-2.5 py-1 text-sm font-extrabold ${badgeClass}`}
+                    className={`rounded-lg border px-2 py-0.5 text-xs font-extrabold ${badgeClass}`}
                   >
                     {seg.text}
                   </span>
@@ -438,15 +426,14 @@ export function PronunciationCoach({
             </div>
           )}
 
-          <p className="text-sm font-extrabold text-emerald-900">
-            {feedback.praiseVi}
+          <p className="text-xs font-bold text-slate-800">
+            Nhận xét: <span className="font-semibold">{feedback.praiseVi}</span>
           </p>
           <p className="text-xs font-semibold text-slate-700 leading-relaxed">
-            💡 <span className="font-bold">Góp ý sửa âm:</span>{" "}
-            {feedback.correctionVi}
+            <span className="font-bold">Cần sửa:</span> {feedback.correctionVi}
           </p>
-          <p className="text-xs font-semibold text-amber-900 bg-amber-100/80 rounded-xl px-2.5 py-2 leading-relaxed">
-            👄 <span className="font-bold">Cách đặt miệng:</span>{" "}
+          <p className="text-xs font-semibold text-amber-950 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-2 leading-relaxed">
+            <span className="font-bold">Cách đặt miệng:</span>{" "}
             {feedback.mouthTipVi}
           </p>
         </div>

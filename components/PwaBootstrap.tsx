@@ -75,18 +75,15 @@ export function PwaBootstrap() {
 
   return (
     <div className="fixed top-2 left-1/2 -translate-x-1/2 z-40 w-[calc(100%-1.5rem)] max-w-md animate-pop-in">
-      <div className="flex items-center justify-between gap-2 rounded-2xl bg-emerald-600 text-white px-3.5 py-2.5 shadow-lg border-2 border-emerald-400">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="text-xl shrink-0">🐝</span>
-          <p className="text-xs font-bold leading-tight truncate">
-            Thêm SunnyBee ra màn hình chính để học như app!
-          </p>
-        </div>
+      <div className="flex items-center justify-between gap-2 rounded-xl bg-slate-900 text-white px-3.5 py-2 shadow-lg">
+        <p className="text-xs font-bold leading-tight truncate">
+          Cài ứng dụng ra màn hình chính để học tiện hơn
+        </p>
         <div className="flex items-center gap-1.5 shrink-0">
           <button
             type="button"
             onClick={handleInstall}
-            className="inline-flex items-center gap-1 rounded-xl bg-amber-300 text-amber-950 px-2.5 py-1.5 text-xs font-extrabold shadow-sm active:scale-95"
+            className="inline-flex items-center gap-1 rounded-lg bg-emerald-500 text-white px-2.5 py-1 text-xs font-extrabold active:scale-95"
           >
             <Download className="w-3.5 h-3.5" />
             Cài đặt
@@ -95,7 +92,7 @@ export function PwaBootstrap() {
             type="button"
             onClick={handleDismiss}
             aria-label="Đóng gợi ý cài đặt"
-            className="p-1 rounded-lg hover:bg-emerald-700/60"
+            className="p-1 rounded-lg hover:bg-slate-800"
           >
             <X className="w-4 h-4" />
           </button>
