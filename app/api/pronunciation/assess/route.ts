@@ -96,12 +96,10 @@ export async function POST(request: Request) {
   const audioFile = formData.get("audio");
   const targetText = String(formData.get("targetText") ?? "").trim();
   const cardType = String(formData.get("cardType") ?? "word");
-  const ipa = String(formData.get("ipa") ?? "");
   const pronunciationTipVi = String(
     formData.get("pronunciationTipVi") ??
-      "Mở miệng thoải mái, đọc rõ âm đầu và âm cuối."
+      "Nói tự nhiên, rõ chữ đầu và chữ cuối."
   );
-  const focusPhonemes = String(formData.get("focusPhonemes") ?? "");
   const transcriptHint = String(formData.get("transcriptHint") ?? "");
 
   if (!targetText) {
@@ -131,14 +129,15 @@ export async function POST(request: Request) {
     const mimeType = rawMime.split(";")[0] || "audio/webm";
 
     const prompt = [
-      "Bạn là cô giáo tiếng Anh dịu dàng, vui tính đang dạy bé lớp 3 (8-9 tuổi, người Việt, mới bắt đầu học từ con số 0).",
-      `Mục tiêu bé cần đọc (${cardType}): "${targetText}" (IPA: ${ipa || "n/a"}, âm trọng tâm: ${focusPhonemes || "n/a"}).`,
-      `Gợi ý sư phạm tham khảo: ${pronunciationTipVi}`,
+      "Bạn là người hướng dẫn tiếng Anh gần gũi, dễ hiểu đang giúp một bé lớp 3 (8-9 tuổi, người Việt) nói tiếng Anh tự nhiên để dùng hằng ngày.",
+      `Câu hoặc từ bé cần nói: "${targetText}" (${cardType}).`,
+      `Gợi ý tham khảo: ${pronunciationTipVi}`,
       "",
-      "Hãy nghe kỹ đoạn ghi âm của bé và đánh giá công bằng nhưng thật khích lệ:",
-      "- Nếu bé bị rơi âm cuối (/t/, /d/, /k/, /g/, /v/, /s/, /n/), phát âm chưa bật hơi (/p/, /t/), hoặc nhầm nguyên âm (/æ/ thành e/a), hãy chỉ rõ bằng tiếng Việt cực kỳ dễ hiểu cho trẻ 8 tuổi.",
-      "- Nếu bé chưa nói gì hoặc quá nhỏ/ồn, nhẹ nhàng nhắc bé đưa điện thoại gần miệng và đọc to hơn.",
-      "- segments: tách mục tiêu thành từng từ (hoặc từng chữ cái nếu là từ CVC/phonics ngắn) và gán status 'good' (đọc đạt), 'almost' (gần đúng), hoặc 'fix' (cần sửa).",
+      "Hãy nghe kỹ đoạn ghi âm của bé và nhận xét theo cách thật tự nhiên, thực tế:",
+      "- TUYỆT ĐỐI KHÔNG dùng ký hiệu phiên âm quốc tế IPA (như /æ/, /θ/) hay thuật ngữ ngôn ngữ học (như 'âm vị', 'vòm họng', 'bật hơi vô thanh').",
+      "- Tập trung vào việc người nghe có hiểu được bé nói gì không. Khen điểm bé nói rõ ràng, rồi chỉ 1 điểm đơn giản nhất để bé nói tự nhiên hơn bằng tiếng Việt đời thường (ví dụ: 'chữ cuối hơi nhỏ, con đọc rõ thêm chút nữa là người nước ngoài hiểu ngay').",
+      "- Nếu bé chưa nói gì hoặc quá nhỏ/ồn, nhẹ nhàng nhắc bé đưa điện thoại gần miệng và nói to rõ hơn.",
+      "- segments: tách mục tiêu thành từng từ và gán status 'good' (nghe rõ), 'almost' (gần rõ), hoặc 'fix' (cần nói rõ hơn).",
       "- score: 0..100, stars: 1, 2, hoặc 3.",
     ].join("\n");
 

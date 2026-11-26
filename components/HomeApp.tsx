@@ -31,7 +31,7 @@ export function HomeApp() {
   });
   const [nowMs, setNowMs] = useState<number | null>(null);
   const [trackFilter, setTrackFilter] = useState<
-    "all" | "phonics" | "vocab_sentence"
+    "all" | "daily_talk" | "vocab_use"
   >("all");
   const [pinOpen, setPinOpen] = useState(false);
 
@@ -74,21 +74,21 @@ export function HomeApp() {
     return firstPending ?? allLessons[0] ?? null;
   }, [allLessons, profile.completedLessonIds]);
 
+  const dailyTalkCount = useMemo(
+    () => allLessons.filter((l) => l.track === "daily_talk").length,
+    [allLessons]
+  );
+  const vocabCount = allLessons.length - dailyTalkCount;
+
   const filteredLessons = useMemo(() => {
     return allLessons
       .map((lesson, idx) => ({ lesson, order: idx + 1 }))
       .filter(({ lesson }) => {
         if (trackFilter === "all") return true;
-        if (trackFilter === "phonics") return lesson.track === "phonics";
-        return lesson.track === "vocab_sentence" || lesson.track === "mixed";
+        if (trackFilter === "daily_talk") return lesson.track === "daily_talk";
+        return lesson.track !== "daily_talk";
       });
   }, [allLessons, trackFilter]);
-
-  const phonicsCount = useMemo(
-    () => allLessons.filter((l) => l.track === "phonics").length,
-    [allLessons]
-  );
-  const vocabCount = allLessons.length - phonicsCount;
 
   const handlePinSuccess = (pin: string) => {
     try {
@@ -110,7 +110,7 @@ export function HomeApp() {
               Học Tiếng Anh
             </h1>
             <p className="text-xs font-semibold text-slate-500">
-              Lớp 3 cơ bản • {allLessons.length} bài học
+              Lớp 3 giao tiếp thực tế • {allLessons.length} bài
             </p>
           </div>
           <button
@@ -201,20 +201,20 @@ export function HomeApp() {
           </button>
           <button
             type="button"
-            onClick={() => setTrackFilter("phonics")}
+            onClick={() => setTrackFilter("daily_talk")}
             className={`rounded-xl px-3 py-1.5 text-xs font-bold border shrink-0 transition ${
-              trackFilter === "phonics"
+              trackFilter === "daily_talk"
                 ? "bg-slate-900 border-slate-900 text-white"
                 : "bg-white border-slate-200 text-slate-600"
             }`}
           >
-            Ghép âm ({phonicsCount})
+            Giao tiếp ({dailyTalkCount})
           </button>
           <button
             type="button"
-            onClick={() => setTrackFilter("vocab_sentence")}
+            onClick={() => setTrackFilter("vocab_use")}
             className={`rounded-xl px-3 py-1.5 text-xs font-bold border shrink-0 transition ${
-              trackFilter === "vocab_sentence"
+              trackFilter === "vocab_use"
                 ? "bg-slate-900 border-slate-900 text-white"
                 : "bg-white border-slate-200 text-slate-600"
             }`}
@@ -231,11 +231,7 @@ export function HomeApp() {
               (c) => (progressMap[c.id]?.attempts ?? 0) > 0
             ).length;
             const trackLabel =
-              lesson.track === "phonics"
-                ? "Ghép âm"
-                : lesson.track === "vocab_sentence"
-                ? "Từ & Câu"
-                : "Tổng hợp";
+              lesson.track === "daily_talk" ? "Giao tiếp" : "Từ & Câu";
             const pct =
               lesson.cards.length > 0
                 ? Math.round((learnedCards / lesson.cards.length) * 100)

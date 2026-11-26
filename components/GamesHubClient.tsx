@@ -53,7 +53,7 @@ const PRACTICE_MODES: Array<{
   },
   {
     id: "speak_flash",
-    title: "Nhìn hình & Đọc to",
+    title: "Nhìn hình & Nói",
     desc: "Luyện phản xạ nói tiếng Anh và chấm phát âm.",
     icon: Mic,
   },
@@ -125,6 +125,42 @@ export function GamesHubClient() {
     await saveCardProgress(progress);
   };
 
+  if (activeMode) {
+    return (
+      <div className="h-[100dvh] w-full flex flex-col items-center bg-[#F8F7F4] overflow-hidden">
+        <div className="w-full max-w-md h-full flex flex-col px-4 pt-3 pb-safe overflow-hidden space-y-2.5">
+          <header className="flex items-center justify-between shrink-0">
+            <span className="text-xs font-extrabold text-slate-800">
+              {PRACTICE_MODES.find((m) => m.id === activeMode)?.title}
+            </span>
+            <button
+              type="button"
+              onClick={() => setActiveMode(null)}
+              className="rounded-xl bg-white border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-600"
+            >
+              Thoát
+            </button>
+          </header>
+          <MiniGameArena
+            cards={gameCards}
+            distractorPool={allCards}
+            preferredModes={[activeMode]}
+            onCardResult={handleCardResult}
+            onComplete={async ({ starsEarned }) => {
+              await recordStudySession({
+                starsEarned,
+                kind: "game",
+                cardsCount: gameCards.length,
+              });
+              setFinishedDone(true);
+              setActiveMode(null);
+            }}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col items-center">
       <div className="w-full max-w-md min-h-screen pb-24 px-4 pt-5 space-y-4">
@@ -133,7 +169,7 @@ export function GamesHubClient() {
             Luyện tập
           </h1>
           <p className="text-xs font-semibold text-slate-500">
-            Chọn dạng bài tập để ôn nghe, nhớ chữ và phát âm
+            Chọn dạng bài tập để ôn nghe, nhớ chữ và nói tự nhiên
           </p>
         </header>
 
@@ -160,36 +196,6 @@ export function GamesHubClient() {
             >
               Chọn bài tập khác
             </button>
-          </div>
-        ) : activeMode ? (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-700">
-                {PRACTICE_MODES.find((m) => m.id === activeMode)?.title}
-              </span>
-              <button
-                type="button"
-                onClick={() => setActiveMode(null)}
-                className="text-xs font-bold text-slate-500 hover:underline"
-              >
-                ← Đổi bài tập
-              </button>
-            </div>
-            <MiniGameArena
-              cards={gameCards}
-              distractorPool={allCards}
-              preferredModes={[activeMode]}
-              onCardResult={handleCardResult}
-              onComplete={async ({ starsEarned }) => {
-                await recordStudySession({
-                  starsEarned,
-                  kind: "game",
-                  cardsCount: gameCards.length,
-                });
-                setFinishedDone(true);
-                setActiveMode(null);
-              }}
-            />
           </div>
         ) : (
           <>
@@ -231,7 +237,9 @@ export function GamesHubClient() {
                 onChange={(e) => setLessonFilterId(e.target.value)}
                 className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-700"
               >
-                <option value="all">Theo phạm vi: Tất cả bài ({allCards.length} thẻ)</option>
+                <option value="all">
+                  Theo phạm vi: Tất cả bài ({allCards.length} thẻ)
+                </option>
                 {allLessons.map((l, idx) => (
                   <option key={l.id} value={l.id}>
                     Bài {idx + 1}: {l.title} ({l.cards.length} thẻ)

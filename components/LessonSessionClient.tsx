@@ -2,7 +2,14 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, CheckCircle2, Volume2 } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  CheckCircle2,
+  HelpCircle,
+  Volume2,
+  X,
+} from "lucide-react";
 import { playCardAudio, playSfx, playText } from "@/lib/audio-player";
 import { fetchActiveCurriculum } from "@/lib/client-curriculum";
 import {
@@ -37,6 +44,7 @@ export function LessonSessionClient({ lessonId }: { lessonId: string }) {
   const [loading, setLoading] = useState(true);
   const [stage, setStage] = useState<"learn" | "game" | "done">("learn");
   const [cardIndex, setCardIndex] = useState(0);
+  const [tipOpen, setTipOpen] = useState(false);
   const [summaryRows, setSummaryRows] = useState<LessonSummaryItem[]>([]);
 
   useEffect(() => {
@@ -62,14 +70,6 @@ export function LessonSessionClient({ lessonId }: { lessonId: string }) {
   );
 
   const currentCard = found?.lesson.cards[cardIndex];
-
-  const breakdownParts = useMemo(() => {
-    if (!currentCard?.phonicsBreakdown) return [];
-    return currentCard.phonicsBreakdown
-      .split(/\s*[|\-]\s*/)
-      .map((s) => s.trim())
-      .filter(Boolean);
-  }, [currentCard]);
 
   useEffect(() => {
     if (stage === "learn" && currentCard) {
@@ -117,7 +117,7 @@ export function LessonSessionClient({ lessonId }: { lessonId: string }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6">
+      <div className="h-[100dvh] flex items-center justify-center p-6 bg-[#F8F7F4]">
         <div className="rounded-2xl bg-white p-6 text-center border border-slate-200">
           <p className="font-bold text-slate-600 text-sm">Đang tải bài học...</p>
         </div>
@@ -127,7 +127,7 @@ export function LessonSessionClient({ lessonId }: { lessonId: string }) {
 
   if (!found || found.lesson.cards.length === 0) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center space-y-4">
+      <div className="h-[100dvh] flex flex-col items-center justify-center p-6 text-center space-y-4 bg-[#F8F7F4]">
         <h1 className="font-display text-lg font-extrabold text-slate-900">
           Không tìm thấy bài học này
         </h1>
@@ -152,84 +152,67 @@ export function LessonSessionClient({ lessonId }: { lessonId: string }) {
     }
   };
 
+  const goNextCard = async () => {
+    playSfx("tap");
+    setTipOpen(false);
+    await ensureCurrentCardTracked();
+    if (cardIndex + 1 < totalCards) {
+      setCardIndex((i) => i + 1);
+    } else {
+      setStage("game");
+    }
+  };
+
   return (
-    <div className="min-h-screen flex flex-col items-center bg-[#F8F7F4]">
-      <div
-        className={`w-full max-w-md min-h-screen px-4 pt-3 space-y-3.5 ${
-          stage === "learn" ? "pb-24" : "pb-8"
-        }`}
-      >
-        {/* Compact Top Header */}
-        <header className="flex items-center justify-between gap-2">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-1 rounded-xl bg-white border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-700 shrink-0"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Bài học
-          </Link>
-          <h1 className="font-display text-sm font-extrabold text-slate-900 truncate">
-            {lesson.title}
-          </h1>
-          {stage === "learn" ? (
-            <button
-              type="button"
-              onClick={async () => {
-                await ensureCurrentCardTracked();
-                setStage("game");
-              }}
-              className="rounded-xl bg-white border border-slate-200 px-2.5 py-1.5 text-xs font-bold text-sky-700 hover:bg-sky-50 shrink-0"
+    <div className="h-[100dvh] w-full flex flex-col items-center bg-[#F8F7F4] overflow-hidden">
+      <div className="w-full max-w-md h-full flex flex-col px-4 pt-2.5 pb-safe overflow-hidden">
+        {/* Fixed Top Header */}
+        <header className="shrink-0 space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <Link
+              href="/"
+              className="inline-flex items-center gap-1 rounded-xl bg-white border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-700 shrink-0"
             >
-              Luyện tập
-            </button>
-          ) : (
-            <span className="w-14 shrink-0" />
-          )}
-        </header>
+              <ArrowLeft className="w-4 h-4" />
+              Bài học
+            </Link>
+            <h1 className="font-display text-sm font-extrabold text-slate-900 truncate">
+              {lesson.title}
+            </h1>
+            {stage === "learn" ? (
+              <button
+                type="button"
+                onClick={async () => {
+                  await ensureCurrentCardTracked();
+                  setStage("game");
+                }}
+                className="rounded-xl bg-white border border-slate-200 px-2.5 py-1.5 text-xs font-bold text-sky-700 hover:bg-sky-50 shrink-0"
+              >
+                Luyện tập
+              </button>
+            ) : stage === "game" ? (
+              <button
+                type="button"
+                onClick={() => setStage("learn")}
+                className="rounded-xl bg-white border border-slate-200 px-2.5 py-1.5 text-xs font-bold text-slate-700 shrink-0"
+              >
+                Học thẻ
+              </button>
+            ) : (
+              <span className="w-14 shrink-0" />
+            )}
+          </div>
 
-        {/* Stage Indicator */}
-        <div className="grid grid-cols-3 gap-2 text-center text-[11px] font-bold">
-          <div
-            className={`rounded-xl py-1.5 ${
-              stage === "learn"
-                ? "bg-emerald-600 text-white"
-                : "bg-emerald-100 text-emerald-800"
-            }`}
-          >
-            1. Học &amp; Đọc
-          </div>
-          <div
-            className={`rounded-xl py-1.5 ${
-              stage === "game"
-                ? "bg-sky-600 text-white"
-                : stage === "done"
-                ? "bg-emerald-100 text-emerald-800"
-                : "bg-slate-200/70 text-slate-500"
-            }`}
-          >
-            2. Luyện tập
-          </div>
-          <div
-            className={`rounded-xl py-1.5 ${
-              stage === "done"
-                ? "bg-emerald-600 text-white"
-                : "bg-slate-200/70 text-slate-500"
-            }`}
-          >
-            3. Hoàn thành
-          </div>
-        </div>
-
-        {/* STAGE 1: FLASHCARD & PRONUNCIATION */}
-        {stage === "learn" && currentCard && (
-          <div className="space-y-3 animate-pop-in">
-            {/* Tappable Card Step Bar */}
+          {stage === "learn" && (
             <div className="flex items-center gap-1.5">
               {lesson.cards.map((c, idx) => (
                 <button
                   key={c.id}
                   type="button"
-                  onClick={() => setCardIndex(idx)}
+                  onClick={() => {
+                    setTipOpen(false);
+                    setCardIndex(idx);
+                  }}
                   aria-label={`Chuyển đến thẻ ${idx + 1}: ${c.text}`}
                   className={`h-2 flex-1 rounded-full transition-all ${
                     idx === cardIndex
@@ -244,221 +227,234 @@ export function LessonSessionClient({ lessonId }: { lessonId: string }) {
                 {cardIndex + 1}/{totalCards}
               </span>
             </div>
+          )}
+        </header>
 
-            {/* Main Knowledge Card */}
-            <div className="rounded-2xl bg-white border border-slate-200 p-4 space-y-3 shadow-xs">
-              <div className="flex items-center justify-between">
-                <span className="rounded-lg bg-slate-100 px-2.5 py-0.5 text-[11px] font-bold text-slate-700">
-                  {currentCard.type === "phonics"
-                    ? "Phonics"
-                    : currentCard.type === "sentence"
-                    ? "Câu ngắn"
-                    : "Từ vựng"}
-                </span>
-                {currentCard.ipa && (
-                  <span className="rounded-lg bg-slate-50 border border-slate-200 px-2 py-0.5 text-xs font-semibold text-slate-600">
-                    {currentCard.ipa}
+        {/* STAGE 1: FIXED ZERO-SCROLL FLASHCARD */}
+        {stage === "learn" && currentCard && (
+          <>
+            <main className="flex-1 min-h-0 flex flex-col justify-center py-2">
+              <div className="rounded-2xl bg-white border border-slate-200 p-3.5 space-y-2.5 shadow-xs">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="rounded-lg bg-slate-100 px-2.5 py-0.5 text-[11px] font-bold text-slate-700">
+                    {currentCard.type === "sentence" ? "Mẫu câu" : "Từ vựng"}
                   </span>
-                )}
-              </div>
-
-              <div className="flex flex-col items-center text-center space-y-2">
-                <button
-                  type="button"
-                  onClick={() => void playCardAudio(currentCard, "normal")}
-                  className="relative rounded-2xl bg-slate-50 border border-slate-100 p-2 active:scale-95 transition"
-                  title="Chạm để nghe"
-                >
-                  <img
-                    src={currentCard.imageUrl}
-                    alt={currentCard.meaningVi}
-                    className="w-28 h-28 object-contain"
-                  />
-                  <span className="absolute bottom-1.5 right-1.5 w-7 h-7 rounded-full bg-sky-600 text-white flex items-center justify-center shadow-xs">
-                    <Volume2 className="w-3.5 h-3.5" />
-                  </span>
-                </button>
-
-                <h2 className="font-display text-3xl font-extrabold text-slate-900 tracking-wide">
-                  {currentCard.text}
-                </h2>
-
-                <p className="text-sm font-extrabold text-emerald-800">
-                  {currentCard.meaningVi}
-                </p>
-
-                {/* Tappable phonics breakdown chips */}
-                {breakdownParts.length > 0 && (
-                  <div className="flex flex-wrap items-center justify-center gap-1.5 pt-0.5">
-                    {breakdownParts.map((part, idx) => (
-                      <button
-                        key={`${part}-${idx}`}
-                        type="button"
-                        onClick={() => {
-                          if (currentCard.type === "sentence") {
-                            void playText(part, "slow");
-                          } else {
-                            void playCardAudio(currentCard, "slow");
-                          }
-                        }}
-                        className="rounded-lg bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2.5 py-0.5 text-xs font-bold text-emerald-900"
-                      >
-                        {part}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Mouth / Pronunciation Guide visible BEFORE recording */}
-              {currentCard.pronunciationTipVi && (
-                <div className="rounded-xl bg-amber-50 border border-amber-200 px-3 py-2.5 text-xs text-amber-950 leading-relaxed">
-                  <span className="font-extrabold">Cách đọc chuẩn: </span>
-                  <span className="font-semibold">
-                    {currentCard.pronunciationTipVi}
-                  </span>
+                  {currentCard.pronunciationTipVi && (
+                    <button
+                      type="button"
+                      onClick={() => setTipOpen(true)}
+                      className="inline-flex items-center gap-1 rounded-lg bg-amber-50 border border-amber-200 px-2.5 py-0.5 text-[11px] font-bold text-amber-900"
+                    >
+                      <HelpCircle className="w-3 h-3" />
+                      Mẹo đọc nhanh
+                    </button>
+                  )}
                 </div>
-              )}
 
-              {/* Example sentence with 1-tap audio */}
-              {currentCard.exampleEn && (
-                <div className="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2.5 flex items-center justify-between gap-2.5">
-                  <div className="min-w-0">
-                    <p className="text-xs font-extrabold text-slate-800">
-                      Ví dụ: {currentCard.exampleEn}
-                    </p>
-                    {currentCard.exampleVi && (
-                      <p className="text-[11px] font-semibold text-slate-500 mt-0.5">
-                        {currentCard.exampleVi}
-                      </p>
-                    )}
-                  </div>
+                <div className="flex flex-col items-center text-center space-y-1.5">
                   <button
                     type="button"
-                    onClick={() => void playText(currentCard.exampleEn!, "normal")}
-                    aria-label="Nghe câu ví dụ"
-                    className="w-8 h-8 rounded-lg bg-white border border-slate-200 text-sky-700 flex items-center justify-center shrink-0 hover:bg-sky-50"
+                    onClick={() => void playCardAudio(currentCard, "normal")}
+                    className="relative rounded-2xl bg-slate-50 border border-slate-100 p-2 active:scale-95 transition"
+                    title="Chạm để nghe"
                   >
-                    <Volume2 className="w-4 h-4" />
+                    <img
+                      src={currentCard.imageUrl}
+                      alt={currentCard.meaningVi}
+                      className="w-24 h-24 sm:w-28 sm:h-28 object-contain"
+                    />
+                    <span className="absolute bottom-1 right-1 w-6 h-6 rounded-full bg-sky-600 text-white flex items-center justify-center shadow-xs">
+                      <Volume2 className="w-3 h-3" />
+                    </span>
                   </button>
-                </div>
-              )}
-            </div>
 
-            {/* Pronunciation Coach */}
-            <PronunciationCoach
-              key={currentCard.id}
-              card={currentCard}
-              onEvaluated={(fb) => {
-                void recordOutcome(currentCard.id, {
-                  kind: "speaking",
-                  speakingScore: fb.score,
-                  mistakeNoteVi: fb.stars < 3 ? fb.correctionVi : undefined,
-                });
+                  <h2 className="font-display text-2xl sm:text-3xl font-extrabold text-slate-900 leading-tight">
+                    {currentCard.text}
+                  </h2>
+
+                  <p className="text-sm sm:text-base font-extrabold text-emerald-800">
+                    {currentCard.meaningVi}
+                  </p>
+                </div>
+
+                {currentCard.exampleEn && (
+                  <div className="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2 flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-xs font-extrabold text-slate-800 truncate">
+                        {currentCard.exampleEn}
+                      </p>
+                      {currentCard.exampleVi && (
+                        <p className="text-[11px] font-semibold text-slate-500 truncate">
+                          {currentCard.exampleVi}
+                        </p>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void playText(currentCard.exampleEn!, "normal")
+                      }
+                      aria-label="Nghe câu ví dụ"
+                      className="w-8 h-8 rounded-lg bg-white border border-slate-200 text-sky-700 flex items-center justify-center shrink-0 hover:bg-sky-50"
+                    >
+                      <Volume2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            </main>
+
+            {/* Fixed Bottom Dock */}
+            <footer className="shrink-0 space-y-2 pt-1">
+              <PronunciationCoach
+                key={currentCard.id}
+                card={currentCard}
+                onEvaluated={(fb) => {
+                  void recordOutcome(currentCard.id, {
+                    kind: "speaking",
+                    speakingScore: fb.score,
+                    mistakeNoteVi: fb.stars < 3 ? fb.correctionVi : undefined,
+                  });
+                }}
+                onNextCard={() => void goNextCard()}
+                nextLabel={
+                  cardIndex + 1 < totalCards ? "Thẻ tiếp theo" : "Vào luyện tập"
+                }
+              />
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={cardIndex === 0}
+                  onClick={() => {
+                    setTipOpen(false);
+                    setCardIndex((i) => Math.max(0, i - 1));
+                  }}
+                  className="rounded-xl bg-white border border-slate-200 disabled:opacity-40 px-4 py-2.5 font-bold text-xs text-slate-700 shrink-0"
+                >
+                  ← Trước
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void goNextCard()}
+                  className="flex-1 rounded-xl bg-slate-900 hover:bg-slate-800 text-white py-2.5 px-4 font-extrabold text-sm flex items-center justify-center gap-1.5"
+                >
+                  {cardIndex + 1 < totalCards ? (
+                    <>
+                      Thẻ tiếp theo <ArrowRight className="w-4 h-4" />
+                    </>
+                  ) : (
+                    <>
+                      Vào luyện tập <ArrowRight className="w-4 h-4" />
+                    </>
+                  )}
+                </button>
+              </div>
+            </footer>
+          </>
+        )}
+
+        {/* STAGE 2: FIXED ZERO-SCROLL PRACTICE */}
+        {stage === "game" && (
+          <main className="flex-1 min-h-0 flex flex-col pt-2 overflow-hidden">
+            <MiniGameArena
+              cards={lesson.cards}
+              distractorPool={allCards}
+              onCardResult={(cid, outcome) => recordOutcome(cid, outcome)}
+              onComplete={({ starsEarned }) => {
+                void handleFinishAll(starsEarned);
               }}
             />
-          </div>
+          </main>
         )}
 
-        {/* STAGE 2: MINI-GAMES */}
-        {stage === "game" && (
-          <MiniGameArena
-            cards={lesson.cards}
-            distractorPool={allCards}
-            onCardResult={(cid, outcome) => recordOutcome(cid, outcome)}
-            onComplete={({ starsEarned }) => {
-              void handleFinishAll(starsEarned);
-            }}
-          />
-        )}
-
-        {/* STAGE 3: COMPLETION + SRS SCHEDULE */}
+        {/* STAGE 3: COMPLETION */}
         {stage === "done" && (
-          <div className="rounded-2xl bg-white border border-slate-200 p-5 space-y-4 animate-pop-in">
-            <div className="flex items-center gap-2.5">
-              <CheckCircle2 className="w-7 h-7 text-emerald-600 shrink-0" />
-              <div>
-                <h2 className="font-display text-lg font-extrabold text-slate-900">
-                  Hoàn thành bài học
-                </h2>
-                <p className="text-xs font-semibold text-slate-500">
-                  Lịch ôn tập SRS đã tự động cập nhật theo kết quả của bé
-                </p>
+          <main className="flex-1 min-h-0 flex flex-col justify-center py-2 overflow-hidden">
+            <div className="rounded-2xl bg-white border border-slate-200 p-4 space-y-3.5 animate-pop-in max-h-full flex flex-col">
+              <div className="flex items-center gap-2.5 shrink-0">
+                <CheckCircle2 className="w-6 h-6 text-emerald-600 shrink-0" />
+                <div>
+                  <h2 className="font-display text-base font-extrabold text-slate-900">
+                    Hoàn thành bài học
+                  </h2>
+                  <p className="text-xs font-semibold text-slate-500">
+                    Lịch ôn SRS đã cập nhật theo kết quả luyện tập
+                  </p>
+                </div>
+              </div>
+
+              <div className="rounded-xl bg-slate-50 border border-slate-200 p-2.5 space-y-1.5 overflow-y-auto flex-1 min-h-0">
+                {summaryRows.map((row) => (
+                  <div
+                    key={row.cardId}
+                    className="flex items-center justify-between text-xs bg-white rounded-lg px-3 py-2 border border-slate-100"
+                  >
+                    <span className="font-extrabold text-slate-800">
+                      {row.text}
+                    </span>
+                    <span className="font-bold text-emerald-700">
+                      {row.nextReviewVi}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex gap-2.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStage("learn");
+                    setCardIndex(0);
+                  }}
+                  className="flex-1 rounded-xl bg-slate-100 text-slate-700 py-3 font-bold text-sm"
+                >
+                  Học lại
+                </button>
+                <Link
+                  href="/"
+                  className="flex-1 rounded-xl bg-emerald-600 text-white py-3 font-bold text-sm flex items-center justify-center"
+                >
+                  Về danh sách bài
+                </Link>
               </div>
             </div>
-
-            <div className="rounded-xl bg-slate-50 border border-slate-200 p-3 space-y-1.5">
-              {summaryRows.map((row) => (
-                <div
-                  key={row.cardId}
-                  className="flex items-center justify-between text-xs bg-white rounded-lg px-3 py-2 border border-slate-100"
-                >
-                  <span className="font-extrabold text-slate-800">
-                    {row.text}
-                  </span>
-                  <span className="font-bold text-emerald-700">
-                    {row.nextReviewVi}
-                  </span>
-                </div>
-              ))}
-            </div>
-
-            <div className="flex gap-2.5 pt-1">
-              <button
-                type="button"
-                onClick={() => {
-                  setStage("learn");
-                  setCardIndex(0);
-                }}
-                className="flex-1 rounded-xl bg-slate-100 text-slate-700 py-3 font-bold text-sm"
-              >
-                Học lại
-              </button>
-              <Link
-                href="/"
-                className="flex-1 rounded-xl bg-emerald-600 text-white py-3 font-bold text-sm flex items-center justify-center"
-              >
-                Về danh sách bài
-              </Link>
-            </div>
-          </div>
+          </main>
         )}
       </div>
 
-      {/* Sticky Bottom Thumb Navigation Bar during Learn stage */}
-      {stage === "learn" && currentCard && (
-        <div className="fixed bottom-0 left-0 right-0 z-30 flex justify-center pointer-events-none">
-          <div className="w-full max-w-md bg-white/95 backdrop-blur-md border-t border-slate-200 px-4 py-2.5 pb-safe pointer-events-auto flex items-center gap-2.5">
+      {/* Lightweight Speaking Tip Overlay */}
+      {tipOpen && currentCard?.pronunciationTipVi && (
+        <div
+          className="fixed inset-0 z-50 bg-slate-900/45 backdrop-blur-[1px] flex items-end justify-center"
+          onClick={() => setTipOpen(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-t-3xl bg-white p-5 pb-safe shadow-2xl space-y-3 animate-pop-in"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <h3 className="font-display text-base font-extrabold text-slate-900">
+                Mẹo nói: {currentCard.text}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setTipOpen(false)}
+                aria-label="Đóng"
+                className="w-8 h-8 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-sm font-semibold text-slate-700 leading-relaxed bg-amber-50 border border-amber-200 rounded-xl p-3">
+              {currentCard.pronunciationTipVi}
+            </p>
             <button
               type="button"
-              disabled={cardIndex === 0}
-              onClick={() => setCardIndex((i) => Math.max(0, i - 1))}
-              className="rounded-xl bg-slate-100 disabled:opacity-40 px-4 py-3 font-bold text-xs text-slate-700 shrink-0"
+              onClick={() => setTipOpen(false)}
+              className="w-full rounded-xl bg-slate-900 text-white py-2.5 text-xs font-extrabold"
             >
-              ← Trước
-            </button>
-            <button
-              type="button"
-              onClick={async () => {
-                playSfx("tap");
-                await ensureCurrentCardTracked();
-                if (cardIndex + 1 < totalCards) {
-                  setCardIndex((i) => i + 1);
-                } else {
-                  setStage("game");
-                }
-              }}
-              className="flex-1 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white py-3 px-4 font-extrabold text-sm flex items-center justify-center gap-2"
-            >
-              {cardIndex + 1 < totalCards ? (
-                <>
-                  Thẻ tiếp theo <ArrowRight className="w-4 h-4" />
-                </>
-              ) : (
-                <>
-                  Vào luyện tập <ArrowRight className="w-4 h-4" />
-                </>
-              )}
+              Đã hiểu
             </button>
           </div>
         </div>

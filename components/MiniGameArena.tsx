@@ -131,9 +131,9 @@ export function MiniGameArena({
   const progressPct = Math.round(((index + 1) / queue.length) * 100);
 
   return (
-    <div className="space-y-3.5">
-      <div className="flex items-center gap-3">
-        <div className="flex-1 h-2.5 rounded-full bg-slate-200 overflow-hidden">
+    <div className="flex-1 min-h-0 flex flex-col gap-2.5 overflow-hidden">
+      <div className="flex items-center gap-3 shrink-0">
+        <div className="flex-1 h-2 rounded-full bg-slate-200 overflow-hidden">
           <div
             className="h-full bg-emerald-600 rounded-full transition-all duration-300"
             style={{ width: `${progressPct}%` }}
@@ -144,54 +144,56 @@ export function MiniGameArena({
         </span>
       </div>
 
-      {current.mode === "listen_pick" && (
-        <ListenPickGame
-          key={current.id}
-          card={current.card}
-          pool={distractorPool}
-          onResult={(outcome, missed) => {
-            if (missed) handleMissAndRequeue(current);
-            void onCardResult(current.card.id, outcome);
-            advanceRound(missed ? 1 : 2);
-          }}
-        />
-      )}
+      <div className="flex-1 min-h-0 flex flex-col justify-center overflow-hidden">
+        {current.mode === "listen_pick" && (
+          <ListenPickGame
+            key={current.id}
+            card={current.card}
+            pool={distractorPool}
+            onResult={(outcome, missed) => {
+              if (missed) handleMissAndRequeue(current);
+              void onCardResult(current.card.id, outcome);
+              advanceRound(missed ? 1 : 2);
+            }}
+          />
+        )}
 
-      {current.mode === "tile_build" && (
-        <TileBuildGame
-          key={current.id}
-          card={current.card}
-          onResult={(outcome, missed) => {
-            if (missed) handleMissAndRequeue(current);
-            void onCardResult(current.card.id, outcome);
-            advanceRound(missed ? 1 : 2);
-          }}
-        />
-      )}
+        {current.mode === "tile_build" && (
+          <TileBuildGame
+            key={current.id}
+            card={current.card}
+            onResult={(outcome, missed) => {
+              if (missed) handleMissAndRequeue(current);
+              void onCardResult(current.card.id, outcome);
+              advanceRound(missed ? 1 : 2);
+            }}
+          />
+        )}
 
-      {current.mode === "memory_match" && (
-        <MemoryMatchGame
-          key={current.id}
-          cards={cards.slice(0, 4)}
-          onResult={(cardId, outcome) => void onCardResult(cardId, outcome)}
-          onDone={(earned) => advanceRound(earned)}
-        />
-      )}
+        {current.mode === "memory_match" && (
+          <MemoryMatchGame
+            key={current.id}
+            cards={cards.slice(0, 4)}
+            onResult={(cardId, outcome) => void onCardResult(cardId, outcome)}
+            onDone={(earned) => advanceRound(earned)}
+          />
+        )}
 
-      {current.mode === "speak_flash" && (
-        <SpeakFlashGame
-          key={current.id}
-          card={current.card}
-          onEvaluated={(fb) => {
-            void onCardResult(current.card.id, {
-              kind: "speaking",
-              speakingScore: fb.score,
-              mistakeNoteVi: fb.stars < 3 ? fb.correctionVi : undefined,
-            });
-          }}
-          onNext={(stars) => advanceRound(stars)}
-        />
-      )}
+        {current.mode === "speak_flash" && (
+          <SpeakFlashGame
+            key={current.id}
+            card={current.card}
+            onEvaluated={(fb) => {
+              void onCardResult(current.card.id, {
+                kind: "speaking",
+                speakingScore: fb.score,
+                mistakeNoteVi: fb.stars < 3 ? fb.correctionVi : undefined,
+              });
+            }}
+            onNext={(stars) => advanceRound(stars)}
+          />
+        )}
+      </div>
     </div>
   );
 }
@@ -249,11 +251,11 @@ function ListenPickGame({
             kind: "game",
             attempts: nextAttempts,
             mistakeNoteVi:
-              nextAttempts > 1 ? `Nghe nhầm hình ở từ "${card.text}"` : undefined,
+              nextAttempts > 1 ? `Nghe nhầm hình ở "${card.text}"` : undefined,
           },
           nextAttempts > 1
         );
-      }, 900);
+      }, 850);
     } else {
       playSfx("tryAgain");
       setWrongIds((prev) => [...prev, opt.id]);
@@ -261,16 +263,16 @@ function ListenPickGame({
   };
 
   return (
-    <div className="rounded-2xl bg-white border border-slate-200 p-4 space-y-3.5 animate-pop-in">
-      <div className="text-center space-y-2">
-        <span className="inline-block rounded-lg bg-slate-100 text-slate-700 px-2.5 py-1 text-xs font-bold">
+    <div className="rounded-2xl bg-white border border-slate-200 p-3.5 space-y-3 animate-pop-in">
+      <div className="text-center space-y-1.5">
+        <span className="inline-block rounded-lg bg-slate-100 text-slate-700 px-2.5 py-0.5 text-[11px] font-bold">
           Nghe &amp; Chọn hình đúng
         </span>
         <div className="flex items-center justify-center gap-2">
           <button
             type="button"
             onClick={() => void playCardAudio(card, "normal")}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-sky-600 text-white px-4 py-2.5 font-bold text-sm"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-sky-600 text-white px-4 py-2 font-bold text-xs"
           >
             <Volume2 className="w-4 h-4" />
             Nghe lại
@@ -278,24 +280,28 @@ function ListenPickGame({
           <button
             type="button"
             onClick={() => void playCardAudio(card, "slow")}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-slate-100 text-slate-800 px-3.5 py-2.5 font-bold text-xs"
+            className="inline-flex items-center gap-1 rounded-xl bg-slate-100 text-slate-800 px-3 py-2 font-bold text-xs"
           >
             <Turtle className="w-4 h-4" />
             Chậm
           </button>
         </div>
-        {solved ? (
-          <p className="text-xs font-extrabold text-emerald-700">
-            Chính xác: {card.text} — {card.meaningVi}
-          </p>
-        ) : wrongIds.length > 0 ? (
-          <p className="text-xs font-bold text-orange-700">
-            Chưa đúng, nghe lại và thử chọn hình khác nhé
-          </p>
-        ) : null}
+        <p className="min-h-[18px] text-xs font-bold">
+          {solved ? (
+            <span className="text-emerald-700">
+              Đúng rồi: {card.text} — {card.meaningVi}
+            </span>
+          ) : wrongIds.length > 0 ? (
+            <span className="text-orange-700">
+              Chưa đúng, nghe lại và thử hình khác nhé
+            </span>
+          ) : (
+            <span className="text-slate-400">Chạm vào bức tranh đúng</span>
+          )}
+        </p>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-2.5">
         {options.map((opt) => {
           const isWrong = wrongIds.includes(opt.id);
           const isRight = solved && opt.id === card.id;
@@ -305,7 +311,7 @@ function ListenPickGame({
               type="button"
               disabled={solved || isWrong}
               onClick={() => handlePick(opt)}
-              className={`rounded-2xl border p-3 flex flex-col items-center justify-center gap-1.5 transition-all ${
+              className={`rounded-2xl border p-2.5 flex flex-col items-center justify-center gap-1 transition-all ${
                 isRight
                   ? "border-emerald-500 bg-emerald-50"
                   : isWrong
@@ -316,10 +322,10 @@ function ListenPickGame({
               <img
                 src={opt.imageUrl}
                 alt={opt.meaningVi}
-                className="w-24 h-24 object-contain rounded-xl"
+                className="w-20 h-20 object-contain rounded-xl"
               />
               {isRight && (
-                <span className="inline-flex items-center gap-1 text-xs font-extrabold text-emerald-700">
+                <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-emerald-700">
                   <CheckCircle2 className="w-3.5 h-3.5" /> {opt.text}
                 </span>
               )}
@@ -346,14 +352,14 @@ function TileBuildGame({
   card: LearningCard;
   onResult: (outcome: ImplicitOutcome, missed: boolean) => void;
 }) {
-  const isSentence = card.type === "sentence";
+  const isMultiWord = card.text.trim().includes(" ");
 
   const targetUnits = useMemo(() => {
-    if (isSentence) {
+    if (isMultiWord) {
       return card.text.trim().split(/\s+/);
     }
     return card.text.trim().split("");
-  }, [card.text, isSentence]);
+  }, [card.text, isMultiWord]);
 
   const initialTiles = useMemo<TileToken[]>(() => {
     const real = targetUnits.map((label, idx) => ({
@@ -361,7 +367,7 @@ function TileBuildGame({
       label,
     }));
     const extras: TileToken[] = [];
-    if (!isSentence && targetUnits.length <= 4) {
+    if (!isMultiWord && targetUnits.length <= 4) {
       const candidates = ["s", "a", "t", "p", "i", "n", "o", "e"].filter(
         (ch) => !targetUnits.includes(ch)
       );
@@ -373,7 +379,7 @@ function TileBuildGame({
       );
     }
     return shuffle([...real, ...extras]);
-  }, [isSentence, targetUnits]);
+  }, [isMultiWord, targetUnits]);
 
   const [pickedIds, setPickedIds] = useState<string[]>([]);
   const [attempts, setAttempts] = useState(0);
@@ -390,9 +396,9 @@ function TileBuildGame({
     if (nextIds.length !== targetUnits.length) return;
     const built = nextIds
       .map((id) => initialTiles.find((t) => t.id === id)?.label ?? "")
-      .join(isSentence ? " " : "");
+      .join(isMultiWord ? " " : "");
 
-    const expected = targetUnits.join(isSentence ? " " : "");
+    const expected = targetUnits.join(isMultiWord ? " " : "");
     const nextAttempts = attempts + 1;
     setAttempts(nextAttempts);
 
@@ -465,10 +471,10 @@ function TileBuildGame({
   };
 
   return (
-    <div className="rounded-2xl bg-white border border-slate-200 p-4 space-y-3.5 animate-pop-in">
+    <div className="rounded-2xl bg-white border border-slate-200 p-3.5 space-y-3 animate-pop-in">
       <div className="flex items-center justify-between">
-        <span className="rounded-lg bg-slate-100 text-slate-700 px-2.5 py-1 text-xs font-bold">
-          {isSentence ? "Xếp thành câu đúng" : "Xếp chữ đúng"}
+        <span className="rounded-lg bg-slate-100 text-slate-700 px-2.5 py-0.5 text-[11px] font-bold">
+          {isMultiWord ? "Ghép câu hoàn chỉnh" : "Xếp chữ đúng"}
         </span>
         <button
           type="button"
@@ -483,20 +489,20 @@ function TileBuildGame({
         <img
           src={card.imageUrl}
           alt={card.meaningVi}
-          className="w-14 h-14 object-contain rounded-lg bg-white p-1 shrink-0"
+          className="w-12 h-12 object-contain rounded-lg bg-white p-1 shrink-0"
         />
-        <div>
-          <p className="text-sm font-extrabold text-slate-800">
+        <div className="min-w-0">
+          <p className="text-sm font-extrabold text-slate-800 truncate">
             {card.meaningVi}
           </p>
-          <p className="text-xs font-semibold text-slate-500">
+          <p className="text-[11px] font-semibold text-slate-500">
             Chạm các thẻ bên dưới theo đúng thứ tự
           </p>
         </div>
       </div>
 
       <div
-        className={`min-h-[56px] rounded-xl border-2 border-dashed p-2 flex flex-wrap items-center justify-center gap-2 ${
+        className={`min-h-[52px] rounded-xl border-2 border-dashed p-2 flex flex-wrap items-center justify-center gap-1.5 ${
           solved
             ? "border-emerald-400 bg-emerald-50"
             : shake
@@ -506,7 +512,7 @@ function TileBuildGame({
       >
         {pickedTokens.length === 0 ? (
           <span className="text-xs font-semibold text-slate-400">
-            Chạm các ô chữ ở dưới...
+            Chạm các ô ở dưới để ghép...
           </span>
         ) : (
           pickedTokens.map((t) => (
@@ -514,7 +520,7 @@ function TileBuildGame({
               key={t.id}
               type="button"
               onClick={() => removePicked(t.id)}
-              className="rounded-lg bg-emerald-600 text-white px-3 py-1.5 font-extrabold text-sm"
+              className="rounded-lg bg-emerald-600 text-white px-2.5 py-1.5 font-extrabold text-xs"
             >
               {t.label}
             </button>
@@ -523,12 +529,12 @@ function TileBuildGame({
       </div>
 
       {wrongMsg && (
-        <p className="text-center text-xs font-bold text-rose-600">
+        <p className="text-center text-[11px] font-bold text-rose-600">
           Chưa đúng thứ tự, chạm vào chữ sai để bỏ hoặc bấm Xóa hết.
         </p>
       )}
 
-      <div className="flex flex-wrap items-center justify-center gap-2">
+      <div className="flex flex-wrap items-center justify-center gap-1.5">
         {initialTiles.map((tile) => {
           const used = pickedIds.includes(tile.id);
           return (
@@ -537,7 +543,7 @@ function TileBuildGame({
               type="button"
               disabled={used || solved}
               onClick={() => tapPoolTile(tile)}
-              className={`rounded-xl px-3.5 py-2 font-extrabold text-sm border transition ${
+              className={`rounded-xl px-3 py-2 font-extrabold text-xs border transition ${
                 used
                   ? "bg-slate-100 border-slate-100 text-transparent"
                   : "bg-white border-slate-300 text-slate-800 hover:bg-slate-50 active:scale-95"
@@ -564,7 +570,7 @@ function TileBuildGame({
           disabled={solved}
           className="inline-flex items-center gap-1 text-xs font-bold text-slate-600 hover:text-slate-900"
         >
-          <HelpCircle className="w-3.5 h-3.5" /> Gợi ý 1 chữ
+          <HelpCircle className="w-3.5 h-3.5" /> Gợi ý
         </button>
       </div>
     </div>
@@ -646,9 +652,9 @@ function MemoryMatchGame({
   };
 
   return (
-    <div className="rounded-2xl bg-white border border-slate-200 p-4 space-y-3 animate-pop-in">
+    <div className="rounded-2xl bg-white border border-slate-200 p-3.5 space-y-3 animate-pop-in">
       <div className="flex items-center justify-between">
-        <span className="rounded-lg bg-slate-100 text-slate-700 px-2.5 py-1 text-xs font-bold">
+        <span className="rounded-lg bg-slate-100 text-slate-700 px-2.5 py-0.5 text-[11px] font-bold">
           Ghép cặp Hình – Chữ
         </span>
         <span className="text-xs font-bold text-slate-500">
@@ -656,7 +662,7 @@ function MemoryMatchGame({
         </span>
       </div>
 
-      <div className="grid grid-cols-3 gap-2.5">
+      <div className="grid grid-cols-3 gap-2">
         {tiles.map((tile) => {
           const isMatched = matchedCardIds.includes(tile.cardId);
           const isOpen = isMatched || flipped.includes(tile.uid);
@@ -678,10 +684,10 @@ function MemoryMatchGame({
                   <img
                     src={tile.card.imageUrl}
                     alt={tile.card.meaningVi}
-                    className="w-16 h-16 object-contain"
+                    className="w-14 h-14 object-contain"
                   />
                 ) : (
-                  <span className="font-display text-sm font-extrabold text-slate-800 text-center leading-tight">
+                  <span className="font-display text-xs font-extrabold text-slate-800 text-center leading-tight">
                     {tile.card.text}
                   </span>
                 )
@@ -712,10 +718,10 @@ function SpeakFlashGame({
   const [doneSpeaking, setDoneSpeaking] = useState(false);
 
   return (
-    <div className="rounded-2xl bg-white border border-slate-200 p-4 space-y-3 animate-pop-in">
+    <div className="rounded-2xl bg-white border border-slate-200 p-3.5 space-y-2.5 animate-pop-in">
       <div className="flex items-center justify-between">
-        <span className="rounded-lg bg-slate-100 text-slate-700 px-2.5 py-1 text-xs font-bold">
-          Nhìn hình & Đọc to
+        <span className="rounded-lg bg-slate-100 text-slate-700 px-2.5 py-0.5 text-[11px] font-bold">
+          Nhìn hình &amp; Nói
         </span>
         <button
           type="button"
@@ -726,15 +732,17 @@ function SpeakFlashGame({
         </button>
       </div>
 
-      <div className="flex flex-col items-center text-center bg-slate-50 rounded-xl p-3">
+      <div className="flex flex-col items-center text-center bg-slate-50 rounded-xl p-2.5">
         <img
           src={card.imageUrl}
           alt={card.meaningVi}
-          className="w-24 h-24 object-contain mb-1"
+          className="w-20 h-20 object-contain mb-1"
         />
-        <p className="text-sm font-bold text-slate-700">{card.meaningVi}</p>
+        <p className="text-sm font-extrabold text-slate-800">
+          {card.meaningVi}
+        </p>
         {showText && (
-          <p className="font-display text-2xl font-extrabold text-emerald-700 mt-1">
+          <p className="font-display text-xl font-extrabold text-emerald-700 mt-0.5">
             {card.text}
           </p>
         )}
@@ -742,21 +750,22 @@ function SpeakFlashGame({
 
       <PronunciationCoach
         card={card}
-        compact
         onEvaluated={(fb) => {
           setDoneSpeaking(true);
           setShowText(true);
           onEvaluated(fb);
         }}
+        onNextCard={() => onNext(2)}
+        nextLabel="Tiếp tục"
       />
 
       <div className="flex justify-end">
         <button
           type="button"
           onClick={() => onNext(doneSpeaking ? 2 : 1)}
-          className="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 font-bold text-xs"
+          className="rounded-xl bg-slate-900 text-white px-5 py-2 font-bold text-xs"
         >
-          {doneSpeaking ? "Tiếp tục" : "Bỏ qua"}
+          {doneSpeaking ? "Câu tiếp theo" : "Bỏ qua"}
         </button>
       </div>
     </div>

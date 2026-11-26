@@ -110,6 +110,42 @@ export function ReviewSessionClient() {
     setActiveCards(shuffled.slice(0, 5));
   };
 
+  if (activeCards) {
+    return (
+      <div className="h-[100dvh] w-full flex flex-col items-center bg-[#F8F7F4] overflow-hidden">
+        <div className="w-full max-w-md h-full flex flex-col px-4 pt-3 pb-safe overflow-hidden space-y-2.5">
+          <header className="flex items-center justify-between shrink-0">
+            <span className="text-xs font-extrabold text-slate-800">
+              Đang ôn {activeCards.length} thẻ
+            </span>
+            <button
+              type="button"
+              onClick={() => setActiveCards(null)}
+              className="rounded-xl bg-white border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-600"
+            >
+              Thoát
+            </button>
+          </header>
+          <MiniGameArena
+            cards={activeCards}
+            distractorPool={allCards}
+            onCardResult={handleCardResult}
+            onComplete={async ({ starsEarned }) => {
+              await recordStudySession({
+                starsEarned,
+                kind: "review",
+                cardsCount: activeCards.length,
+              });
+              setFinishedCount(activeCards.length);
+              setActiveCards(null);
+              void reloadState();
+            }}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col items-center">
       <div className="w-full max-w-md min-h-screen pb-24 px-4 pt-5 space-y-4">
@@ -160,36 +196,6 @@ export function ReviewSessionClient() {
                 Về bài học
               </Link>
             </div>
-          </div>
-        ) : activeCards ? (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-700">
-                Đang ôn {activeCards.length} thẻ
-              </span>
-              <button
-                type="button"
-                onClick={() => setActiveCards(null)}
-                className="text-xs font-bold text-slate-500 hover:underline"
-              >
-                Thoát
-              </button>
-            </div>
-            <MiniGameArena
-              cards={activeCards}
-              distractorPool={allCards}
-              onCardResult={handleCardResult}
-              onComplete={async ({ starsEarned }) => {
-                await recordStudySession({
-                  starsEarned,
-                  kind: "review",
-                  cardsCount: activeCards.length,
-                });
-                setFinishedCount(activeCards.length);
-                setActiveCards(null);
-                void reloadState();
-              }}
-            />
           </div>
         ) : (
           <>

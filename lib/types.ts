@@ -1,6 +1,11 @@
 export type CardType = "phonics" | "word" | "sentence";
 
-export type LessonTrack = "phonics" | "vocab_sentence" | "mixed";
+export type LessonTrack =
+  | "daily_talk"
+  | "vocab_use"
+  | "mixed"
+  | "phonics"
+  | "vocab_sentence";
 
 export type UnitColor = "emerald" | "sky" | "amber" | "rose";
 
@@ -10,13 +15,13 @@ export interface LearningCard {
   text: string;
   spokenText?: string;
   meaningVi: string;
-  ipa: string;
-  phonicsBreakdown: string;
+  ipa?: string;
+  phonicsBreakdown?: string;
   imageUrl: string;
   audioNormalUrl?: string;
   audioSlowUrl?: string;
   pronunciationTipVi: string;
-  focusPhonemes: string[];
+  focusPhonemes?: string[];
   exampleEn?: string;
   exampleVi?: string;
 }

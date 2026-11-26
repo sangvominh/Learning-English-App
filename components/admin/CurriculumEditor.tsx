@@ -665,11 +665,13 @@ export function CurriculumEditor({
                     }
                     className="w-full rounded-xl border border-slate-200 px-2.5 py-1.5 text-xs font-bold bg-white"
                   >
-                    <option value="phonics">Nhánh: Ghép âm (Phonics)</option>
-                    <option value="vocab_sentence">
-                      Nhánh: Từ vựng & Câu ngắn
+                    <option value="daily_talk">Nhánh: Giao tiếp hằng ngày</option>
+                    <option value="vocab_use">
+                      Nhánh: Từ vựng &amp; Câu dùng ngay
                     </option>
                     <option value="mixed">Nhánh: Tổng hợp</option>
+                    <option value="vocab_sentence">Nhánh: Từ &amp; Câu</option>
+                    <option value="phonics">Nhánh: Âm / Phonics</option>
                   </select>
                 </div>
               )}
@@ -800,21 +802,21 @@ export function CurriculumEditor({
 
                 <label className="space-y-1 text-xs">
                   <span className="font-extrabold text-slate-700">
-                    Phiên âm IPA & Tách vần
+                    Ghi chú thêm (tùy chọn)
                   </span>
                   <div className="grid grid-cols-2 gap-2">
                     <input
-                      value={currentCard.ipa}
+                      value={currentCard.ipa ?? ""}
                       onChange={(e) => updateCard({ ipa: e.target.value })}
-                      placeholder="/kæt/"
+                      placeholder="Phiên âm (tùy chọn)"
                       className="rounded-xl border border-slate-200 px-2.5 py-2"
                     />
                     <input
-                      value={currentCard.phonicsBreakdown}
+                      value={currentCard.phonicsBreakdown ?? ""}
                       onChange={(e) =>
                         updateCard({ phonicsBreakdown: e.target.value })
                       }
-                      placeholder="c - a - t"
+                      placeholder="Ghi chú tách từ"
                       className="rounded-xl border border-slate-200 px-2.5 py-2"
                     />
                   </div>
@@ -851,10 +853,10 @@ export function CurriculumEditor({
 
                 <label className="space-y-1 text-xs">
                   <span className="font-extrabold text-slate-700">
-                    Âm trọng tâm (cách nhau bằng dấu phẩy)
+                    Từ khóa trọng tâm (tùy chọn)
                   </span>
                   <input
-                    value={currentCard.focusPhonemes.join(", ")}
+                    value={(currentCard.focusPhonemes ?? []).join(", ")}
                     onChange={(e) =>
                       updateCard({
                         focusPhonemes: e.target.value

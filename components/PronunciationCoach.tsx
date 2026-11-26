@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
+  ArrowRight,
   Headphones,
   Loader2,
   Mic,
@@ -9,6 +10,7 @@ import {
   Square,
   Turtle,
   Volume2,
+  X,
 } from "lucide-react";
 import { playCardAudio, playSfx } from "@/lib/audio-player";
 import type { LearningCard, PronunciationFeedback } from "@/lib/types";
@@ -38,22 +40,25 @@ interface SpeechRecognitionLike {
 interface PronunciationCoachProps {
   card: LearningCard;
   onEvaluated?: (feedback: PronunciationFeedback) => void;
-  compact?: boolean;
+  onNextCard?: () => void;
+  nextLabel?: string;
 }
 
 export function PronunciationCoach({
   card,
   onEvaluated,
-  compact = false,
+  onNextCard,
+  nextLabel = "Thẻ tiếp theo",
 }: PronunciationCoachProps) {
   const [status, setStatus] = useState<
     "idle" | "recording" | "analyzing" | "done" | "error"
   >("idle");
   const [errorMsg, setErrorMsg] = useState("");
   const [feedback, setFeedback] = useState<PronunciationFeedback | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
   const [assessMode, setAssessMode] = useState<string>("");
   const [childAudioUrl, setChildAudioUrl] = useState<string | null>(null);
-  const [levels, setLevels] = useState<number[]>([18, 28, 42, 30, 20, 35, 22]);
+  const [levels, setLevels] = useState<number[]>([20, 35, 50, 32, 24, 40, 26]);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -112,9 +117,9 @@ export function PronunciationCoach({
       form.append("audio", blob, `kid-voice.${ext}`);
       form.append("targetText", card.text);
       form.append("cardType", card.type);
-      form.append("ipa", card.ipa);
+      form.append("ipa", card.ipa ?? "");
       form.append("pronunciationTipVi", card.pronunciationTipVi);
-      form.append("focusPhonemes", card.focusPhonemes.join(", "));
+      form.append("focusPhonemes", (card.focusPhonemes ?? []).join(", "));
       form.append("transcriptHint", transcriptRef.current);
 
       const res = await fetch("/api/pronunciation/assess", {
@@ -135,6 +140,7 @@ export function PronunciationCoach({
       setFeedback(data.feedback);
       setAssessMode(data.mode || "");
       setStatus("done");
+      setSheetOpen(true);
       playSfx(data.feedback.stars >= 2 ? "correct" : "tap");
       onEvaluated?.(data.feedback);
     } catch (err) {
@@ -142,6 +148,7 @@ export function PronunciationCoach({
         err instanceof Error ? err.message : "Có lỗi khi gửi âm thanh."
       );
       setStatus("error");
+      setSheetOpen(true);
     }
   };
 
@@ -158,6 +165,7 @@ export function PronunciationCoach({
   const startRecording = async () => {
     setErrorMsg("");
     setFeedback(null);
+    setSheetOpen(false);
     transcriptRef.current = "";
 
     if (
@@ -166,9 +174,10 @@ export function PronunciationCoach({
       !navigator.mediaDevices.getUserMedia
     ) {
       setErrorMsg(
-        "Trình duyệt đang chặn Micro (do truy cập qua HTTP thường thay vì HTTPS). Bố/mẹ xem hướng dẫn bật quyền Mic hoặc deploy HTTPS trong Quản trị nhé."
+        "Trình duyệt đang chặn Micro (do truy cập qua HTTP thường thay vì HTTPS). Bố/mẹ hãy dùng link HTTPS trên Vercel để bật Micro."
       );
       setStatus("error");
+      setSheetOpen(true);
       return;
     }
 
@@ -276,6 +285,7 @@ export function PronunciationCoach({
         "Chưa mở được Micro. Hãy bấm 'Cho phép' Micro hoặc kiểm tra quyền trình duyệt."
       );
       setStatus("error");
+      setSheetOpen(true);
     }
   };
 
@@ -291,8 +301,7 @@ export function PronunciationCoach({
       stars: 2,
       heardText: card.text,
       praiseVi: "Đã ghi nhận lượt đọc theo mẫu.",
-      correctionVi:
-        "Hãy nghe lại giọng mẫu thêm một lần để nhớ âm đầu và âm cuối.",
+      correctionVi: "Hãy nghe lại giọng mẫu thêm một lần để nhớ cách nói tự nhiên.",
       mouthTipVi: card.pronunciationTipVi,
       segments: card.text
         .split(/\s+/)
@@ -301,55 +310,66 @@ export function PronunciationCoach({
     setFeedback(fallback);
     setStatus("done");
     setErrorMsg("");
+    setSheetOpen(true);
     onEvaluated?.(fallback);
   };
 
   return (
-    <div
-      className={`rounded-2xl bg-white border border-slate-200 ${
-        compact ? "p-3" : "p-3.5"
-      }`}
-    >
-      {/* Audio controls */}
-      <div className="flex items-center justify-center gap-2 mb-2.5">
-        <button
-          type="button"
-          onClick={() => void playCardAudio(card, "normal")}
-          className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white py-2.5 px-3 font-bold text-xs"
-        >
-          <Volume2 className="w-4 h-4 shrink-0" />
-          Nghe mẫu
-        </button>
-        <button
-          type="button"
-          onClick={() => void playCardAudio(card, "slow")}
-          className="flex items-center justify-center gap-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 py-2.5 px-3 font-bold text-xs"
-        >
-          <Turtle className="w-4 h-4 shrink-0" />
-          Đọc chậm
-        </button>
-        {childAudioUrl && (
+    <>
+      {/* Fixed Compact Control Dock (never expands vertically) */}
+      <div className="rounded-2xl bg-white border border-slate-200 p-2.5 space-y-2">
+        <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={playChildVoice}
-            className="flex items-center justify-center gap-1.5 rounded-xl bg-violet-100 hover:bg-violet-200 text-violet-900 py-2.5 px-3 font-bold text-xs"
+            onClick={() => void playCardAudio(card, "normal")}
+            className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white py-2 px-2.5 font-bold text-xs"
           >
-            <Headphones className="w-4 h-4 shrink-0" />
-            Giọng con
+            <Volume2 className="w-4 h-4 shrink-0" />
+            Nghe mẫu
           </button>
-        )}
-      </div>
+          <button
+            type="button"
+            onClick={() => void playCardAudio(card, "slow")}
+            className="flex items-center justify-center gap-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 py-2 px-3 font-bold text-xs"
+          >
+            <Turtle className="w-4 h-4 shrink-0" />
+            Chậm
+          </button>
+          {childAudioUrl && (
+            <button
+              type="button"
+              onClick={playChildVoice}
+              className="flex items-center justify-center gap-1 rounded-xl bg-violet-100 hover:bg-violet-200 text-violet-900 py-2 px-2.5 font-bold text-xs"
+            >
+              <Headphones className="w-3.5 h-3.5 shrink-0" />
+              Giọng con
+            </button>
+          )}
+          {feedback && (
+            <button
+              type="button"
+              onClick={() => setSheetOpen(true)}
+              className={`rounded-xl border px-2.5 py-2 text-xs font-extrabold shrink-0 ${
+                feedback.score >= 80
+                  ? "bg-emerald-50 border-emerald-300 text-emerald-800"
+                  : feedback.score >= 60
+                  ? "bg-amber-50 border-amber-300 text-amber-800"
+                  : "bg-orange-50 border-orange-300 text-orange-800"
+              }`}
+            >
+              {feedback.score}/100
+            </button>
+          )}
+        </div>
 
-      {/* Main Mic Button */}
-      <div className="flex flex-col items-center">
         {status === "recording" ? (
           <button
             type="button"
             onClick={stopRecording}
-            className="animate-mic-pulse w-full rounded-xl bg-orange-500 text-white py-3.5 px-4 flex items-center justify-center gap-2.5 font-extrabold text-sm"
+            className="animate-mic-pulse w-full rounded-xl bg-orange-500 text-white py-3 px-4 flex items-center justify-center gap-2.5 font-extrabold text-sm"
           >
             <Square className="w-4 h-4 fill-current" />
-            <span>Đang thu âm... (Bấm để dừng)</span>
+            <span>Đang nghe... Bấm để dừng</span>
             <span className="flex items-end gap-1 h-4">
               {levels.map((lv, i) => (
                 <span
@@ -361,91 +381,174 @@ export function PronunciationCoach({
             </span>
           </button>
         ) : status === "analyzing" ? (
-          <div className="w-full rounded-xl bg-slate-50 border border-slate-200 py-3.5 px-4 flex items-center justify-center gap-2 text-slate-700 font-bold text-xs">
+          <div className="w-full rounded-xl bg-slate-50 border border-slate-200 py-3 px-4 flex items-center justify-center gap-2 text-slate-700 font-bold text-xs">
             <Loader2 className="w-4 h-4 animate-spin" />
-            Đang phân tích phát âm...
+            Đang nghe và nhận xét...
           </div>
         ) : (
           <button
             type="button"
             onClick={startRecording}
-            className="w-full rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white py-3.5 px-4 flex items-center justify-center gap-2 font-extrabold text-sm"
+            className="w-full rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white py-3 px-4 flex items-center justify-center gap-2 font-extrabold text-sm"
           >
             <Mic className="w-4 h-4" />
-            {feedback ? "Đọc lại để kiểm tra" : "Bấm để đọc"}
+            {feedback ? "Đọc lại" : "Bấm để đọc theo"}
           </button>
         )}
       </div>
 
-      {/* Error Box */}
-      {status === "error" && errorMsg && (
-        <div className="mt-2.5 rounded-xl bg-rose-50 border border-rose-200 p-3 text-xs text-rose-800 space-y-2">
-          <p className="font-semibold">{errorMsg}</p>
-          <button
-            type="button"
-            onClick={handleSelfPracticePass}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-white border border-rose-200 px-3 py-1.5 font-bold text-rose-700 hover:bg-rose-100"
+      {/* Bottom Sheet Overlay for Feedback / Error */}
+      {sheetOpen && (status === "error" || feedback) && (
+        <div
+          className="fixed inset-0 z-50 bg-slate-900/45 backdrop-blur-[1px] flex items-end justify-center"
+          onClick={() => setSheetOpen(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-t-3xl bg-white p-5 pb-safe shadow-2xl space-y-3.5 animate-pop-in"
+            onClick={(e) => e.stopPropagation()}
           >
-            <RotateCcw className="w-3.5 h-3.5" />
-            Đã tự đọc theo mẫu
-          </button>
-        </div>
-      )}
-
-      {/* Feedback Box */}
-      {status === "done" && feedback && (
-        <div className="mt-3 rounded-xl bg-slate-50 border border-slate-200 p-3 space-y-2 animate-pop-in">
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-xs font-extrabold text-slate-700">
-              Kết quả phát âm
-            </span>
-            <span
-              className={`rounded-lg bg-white px-2.5 py-0.5 text-xs font-extrabold border ${
-                feedback.score >= 80
-                  ? "text-emerald-800 border-emerald-300"
-                  : feedback.score >= 60
-                  ? "text-amber-800 border-amber-300"
-                  : "text-orange-800 border-orange-300"
-              }`}
-            >
-              {feedback.score}/100
-              {assessMode === "self-check" ? " • Tự luyện" : ""}
-            </span>
-          </div>
-
-          {feedback.segments.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {feedback.segments.map((seg, i) => {
-                const badgeClass =
-                  seg.status === "good"
-                    ? "bg-emerald-100 text-emerald-900 border-emerald-300"
-                    : seg.status === "almost"
-                    ? "bg-amber-100 text-amber-900 border-amber-300"
-                    : "bg-orange-100 text-orange-900 border-orange-300";
-                return (
-                  <span
-                    key={`${seg.text}-${i}`}
-                    className={`rounded-lg border px-2 py-0.5 text-xs font-extrabold ${badgeClass}`}
-                  >
-                    {seg.text}
-                  </span>
-                );
-              })}
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="font-display text-base font-extrabold text-slate-900">
+                {status === "error" ? "Chưa thu âm được" : "Nhận xét phát âm"}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setSheetOpen(false)}
+                aria-label="Đóng"
+                className="w-8 h-8 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
-          )}
 
-          <p className="text-xs font-bold text-slate-800">
-            Nhận xét: <span className="font-semibold">{feedback.praiseVi}</span>
-          </p>
-          <p className="text-xs font-semibold text-slate-700 leading-relaxed">
-            <span className="font-bold">Cần sửa:</span> {feedback.correctionVi}
-          </p>
-          <p className="text-xs font-semibold text-amber-950 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-2 leading-relaxed">
-            <span className="font-bold">Cách đặt miệng:</span>{" "}
-            {feedback.mouthTipVi}
-          </p>
+            {status === "error" && errorMsg ? (
+              <div className="space-y-3">
+                <p className="text-xs font-semibold text-rose-700 bg-rose-50 border border-rose-200 rounded-xl p-3 leading-relaxed">
+                  {errorMsg}
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={handleSelfPracticePass}
+                    className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 text-white py-2.5 text-xs font-extrabold"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    Đã tự đọc theo mẫu
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSheetOpen(false)}
+                    className="rounded-xl bg-slate-100 text-slate-700 px-4 py-2.5 text-xs font-bold"
+                  >
+                    Đóng
+                  </button>
+                </div>
+              </div>
+            ) : feedback ? (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex flex-wrap gap-1.5">
+                    {feedback.segments.map((seg, i) => {
+                      const badgeClass =
+                        seg.status === "good"
+                          ? "bg-emerald-100 text-emerald-900 border-emerald-300"
+                          : seg.status === "almost"
+                          ? "bg-amber-100 text-amber-900 border-amber-300"
+                          : "bg-orange-100 text-orange-900 border-orange-300";
+                      return (
+                        <span
+                          key={`${seg.text}-${i}`}
+                          className={`rounded-lg border px-2 py-0.5 text-xs font-extrabold ${badgeClass}`}
+                        >
+                          {seg.text}
+                        </span>
+                      );
+                    })}
+                  </div>
+                  <span
+                    className={`rounded-xl px-2.5 py-1 text-xs font-extrabold border shrink-0 ${
+                      feedback.score >= 80
+                        ? "bg-emerald-50 text-emerald-800 border-emerald-300"
+                        : feedback.score >= 60
+                        ? "bg-amber-50 text-amber-800 border-amber-300"
+                        : "bg-orange-50 text-orange-800 border-orange-300"
+                    }`}
+                  >
+                    {feedback.score}/100
+                    {assessMode === "self-check" ? " • Tự luyện" : ""}
+                  </span>
+                </div>
+
+                <div className="rounded-xl bg-slate-50 border border-slate-200 p-3 space-y-1.5 text-xs leading-relaxed">
+                  <p className="font-bold text-slate-900">
+                    {feedback.praiseVi}
+                  </p>
+                  <p className="font-semibold text-slate-700">
+                    <span className="font-bold">Gợi ý:</span>{" "}
+                    {feedback.correctionVi}
+                  </p>
+                  {feedback.mouthTipVi && (
+                    <p className="font-semibold text-amber-900 pt-0.5">
+                      <span className="font-bold">Mẹo nói:</span>{" "}
+                      {feedback.mouthTipVi}
+                    </p>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void playCardAudio(card, "normal")}
+                    className="rounded-xl bg-sky-50 border border-sky-200 text-sky-800 px-3 py-2.5 text-xs font-bold inline-flex items-center gap-1"
+                  >
+                    <Volume2 className="w-3.5 h-3.5" /> Mẫu
+                  </button>
+                  {childAudioUrl && (
+                    <button
+                      type="button"
+                      onClick={playChildVoice}
+                      className="rounded-xl bg-violet-50 border border-violet-200 text-violet-800 px-3 py-2.5 text-xs font-bold inline-flex items-center gap-1"
+                    >
+                      <Headphones className="w-3.5 h-3.5" /> Giọng con
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSheetOpen(false);
+                      void startRecording();
+                    }}
+                    className="rounded-xl bg-slate-100 text-slate-800 px-3 py-2.5 text-xs font-bold"
+                  >
+                    Đọc lại
+                  </button>
+                  {onNextCard ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSheetOpen(false);
+                        onNextCard();
+                      }}
+                      className="flex-1 rounded-xl bg-emerald-600 text-white py-2.5 px-3 text-xs font-extrabold inline-flex items-center justify-center gap-1"
+                    >
+                      {nextLabel}
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setSheetOpen(false)}
+                      className="flex-1 rounded-xl bg-emerald-600 text-white py-2.5 px-3 text-xs font-extrabold"
+                    >
+                      Xong
+                    </button>
+                  )}
+                </div>
+              </div>
+            ) : null}
+          </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
