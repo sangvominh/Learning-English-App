@@ -346,7 +346,7 @@ export function PronunciationCoach({
           <button
             type="button"
             onClick={stopRecording}
-            className="animate-mic-pulse w-full rounded-xl bg-orange-500 text-white py-3 px-4 flex items-center justify-center gap-2.5 font-bold text-sm"
+            className="animate-mic-pulse w-full rounded-xl bg-orange-500 text-white py-3.5 px-4 flex items-center justify-center gap-2.5 font-extrabold text-sm"
           >
             <Square className="w-4 h-4 fill-current" />
             <span>Đang thu âm... (Bấm để dừng)</span>
@@ -361,7 +361,7 @@ export function PronunciationCoach({
             </span>
           </button>
         ) : status === "analyzing" ? (
-          <div className="w-full rounded-xl bg-slate-50 border border-slate-200 py-3 px-4 flex items-center justify-center gap-2 text-slate-700 font-bold text-xs">
+          <div className="w-full rounded-xl bg-slate-50 border border-slate-200 py-3.5 px-4 flex items-center justify-center gap-2 text-slate-700 font-bold text-xs">
             <Loader2 className="w-4 h-4 animate-spin" />
             Đang phân tích phát âm...
           </div>
@@ -369,10 +369,10 @@ export function PronunciationCoach({
           <button
             type="button"
             onClick={startRecording}
-            className="w-full rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white py-3 px-4 flex items-center justify-center gap-2 font-bold text-sm"
+            className="w-full rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white py-3.5 px-4 flex items-center justify-center gap-2 font-extrabold text-sm"
           >
             <Mic className="w-4 h-4" />
-            {feedback ? "Đọc lại" : "Bấm để đọc"}
+            {feedback ? "Đọc lại để kiểm tra" : "Bấm để đọc"}
           </button>
         )}
       </div>
@@ -399,7 +399,15 @@ export function PronunciationCoach({
             <span className="text-xs font-extrabold text-slate-700">
               Kết quả phát âm
             </span>
-            <span className="rounded-lg bg-white px-2.5 py-0.5 text-xs font-extrabold text-emerald-800 border border-emerald-200">
+            <span
+              className={`rounded-lg bg-white px-2.5 py-0.5 text-xs font-extrabold border ${
+                feedback.score >= 80
+                  ? "text-emerald-800 border-emerald-300"
+                  : feedback.score >= 60
+                  ? "text-amber-800 border-amber-300"
+                  : "text-orange-800 border-orange-300"
+              }`}
+            >
               {feedback.score}/100
               {assessMode === "self-check" ? " • Tự luyện" : ""}
             </span>

@@ -866,6 +866,38 @@ export function CurriculumEditor({
                     className="w-full rounded-xl border border-slate-200 px-3 py-2"
                   />
                 </label>
+
+                <label className="space-y-1 text-xs">
+                  <span className="font-extrabold text-slate-700">
+                    Câu ví dụ tiếng Anh (tùy chọn)
+                  </span>
+                  <input
+                    value={currentCard.exampleEn ?? ""}
+                    onChange={(e) =>
+                      updateCard({
+                        exampleEn: e.target.value || undefined,
+                      })
+                    }
+                    placeholder="VD: My cat is cute."
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2"
+                  />
+                </label>
+
+                <label className="space-y-1 text-xs">
+                  <span className="font-extrabold text-slate-700">
+                    Nghĩa câu ví dụ tiếng Việt
+                  </span>
+                  <input
+                    value={currentCard.exampleVi ?? ""}
+                    onChange={(e) =>
+                      updateCard({
+                        exampleVi: e.target.value || undefined,
+                      })
+                    }
+                    placeholder="VD: Con mèo của mình rất dễ thương."
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2"
+                  />
+                </label>
               </div>
 
               {/* Image Picker & Upload */}

@@ -253,7 +253,7 @@ function ListenPickGame({
           },
           nextAttempts > 1
         );
-      }, 600);
+      }, 900);
     } else {
       playSfx("tryAgain");
       setWrongIds((prev) => [...prev, opt.id]);
@@ -264,7 +264,7 @@ function ListenPickGame({
     <div className="rounded-2xl bg-white border border-slate-200 p-4 space-y-3.5 animate-pop-in">
       <div className="text-center space-y-2">
         <span className="inline-block rounded-lg bg-slate-100 text-slate-700 px-2.5 py-1 text-xs font-bold">
-          Nghe & Chọn hình đúng
+          Nghe &amp; Chọn hình đúng
         </span>
         <div className="flex items-center justify-center gap-2">
           <button
@@ -284,6 +284,15 @@ function ListenPickGame({
             Chậm
           </button>
         </div>
+        {solved ? (
+          <p className="text-xs font-extrabold text-emerald-700">
+            Chính xác: {card.text} — {card.meaningVi}
+          </p>
+        ) : wrongIds.length > 0 ? (
+          <p className="text-xs font-bold text-orange-700">
+            Chưa đúng, nghe lại và thử chọn hình khác nhé
+          </p>
+        ) : null}
       </div>
 
       <div className="grid grid-cols-2 gap-3">
@@ -370,6 +379,7 @@ function TileBuildGame({
   const [attempts, setAttempts] = useState(0);
   const [usedHint, setUsedHint] = useState(false);
   const [shake, setShake] = useState(false);
+  const [wrongMsg, setWrongMsg] = useState(false);
   const [solved, setSolved] = useState(false);
 
   const pickedTokens = pickedIds
@@ -388,6 +398,7 @@ function TileBuildGame({
 
     if (built.toLowerCase() === expected.toLowerCase()) {
       setSolved(true);
+      setWrongMsg(false);
       playSfx("correct");
       void playCardAudio(card, "normal");
       window.setTimeout(() => {
@@ -401,14 +412,14 @@ function TileBuildGame({
           },
           nextAttempts > 1
         );
-      }, 650);
+      }, 750);
     } else {
       playSfx("tryAgain");
       setShake(true);
+      setWrongMsg(true);
       window.setTimeout(() => {
         setShake(false);
-        setPickedIds([]);
-      }, 450);
+      }, 400);
     }
   };
 
@@ -416,6 +427,7 @@ function TileBuildGame({
     if (solved || pickedIds.includes(tile.id)) return;
     if (pickedIds.length >= targetUnits.length) return;
     playSfx("tap");
+    setWrongMsg(false);
     const next = [...pickedIds, tile.id];
     setPickedIds(next);
     checkAnswer(next);
@@ -423,12 +435,20 @@ function TileBuildGame({
 
   const removePicked = (tileId: string) => {
     if (solved) return;
+    setWrongMsg(false);
     setPickedIds((prev) => prev.filter((id) => id !== tileId));
+  };
+
+  const handleClearAll = () => {
+    if (solved) return;
+    setWrongMsg(false);
+    setPickedIds([]);
   };
 
   const handleHint = () => {
     if (solved) return;
     setUsedHint(true);
+    setWrongMsg(false);
     const nextSlotIdx = pickedIds.length;
     if (nextSlotIdx >= targetUnits.length) return;
     const neededLabel = targetUnits[nextSlotIdx];
@@ -502,6 +522,12 @@ function TileBuildGame({
         )}
       </div>
 
+      {wrongMsg && (
+        <p className="text-center text-xs font-bold text-rose-600">
+          Chưa đúng thứ tự, chạm vào chữ sai để bỏ hoặc bấm Xóa hết.
+        </p>
+      )}
+
       <div className="flex flex-wrap items-center justify-center gap-2">
         {initialTiles.map((tile) => {
           const used = pickedIds.includes(tile.id);
@@ -523,7 +549,15 @@ function TileBuildGame({
         })}
       </div>
 
-      <div className="flex justify-end">
+      <div className="flex items-center justify-between">
+        <button
+          type="button"
+          onClick={handleClearAll}
+          disabled={solved || pickedIds.length === 0}
+          className="text-xs font-bold text-slate-500 hover:text-slate-800 disabled:opacity-40"
+        >
+          Xóa hết
+        </button>
         <button
           type="button"
           onClick={handleHint}

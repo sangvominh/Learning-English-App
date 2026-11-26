@@ -89,6 +89,29 @@ export async function playCardAudio(
   }
 }
 
+export async function playText(
+  text: string,
+  speed: "normal" | "slow" = "normal"
+): Promise<void> {
+  const trimmed = text.trim();
+  if (!trimmed) return;
+  stopAllPlayback();
+
+  if (typeof window !== "undefined" && "speechSynthesis" in window) {
+    await new Promise<void>((resolve) => {
+      const utter = new SpeechSynthesisUtterance(trimmed);
+      utter.lang = "en-US";
+      utter.rate = speed === "slow" ? 0.62 : 0.9;
+      utter.pitch = 1.05;
+      const voice = pickBestEnglishVoice();
+      if (voice) utter.voice = voice;
+      utter.onend = () => resolve();
+      utter.onerror = () => resolve();
+      window.speechSynthesis.speak(utter);
+    });
+  }
+}
+
 export function playSfx(
   type: "tap" | "correct" | "tryAgain" | "star" | "fanfare"
 ) {

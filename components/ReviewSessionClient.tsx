@@ -75,15 +75,24 @@ export function ReviewSessionClient() {
     [allCards, progressMap, nowMs]
   );
 
-  const nextUpcomingText = useMemo(() => {
-    if (nowMs === null) return null;
-    const entries = Object.values(progressMap).filter((p) => p.attempts > 0);
-    if (entries.length === 0) return null;
-    entries.sort(
-      (a, b) => new Date(a.fsrs.due).getTime() - new Date(b.fsrs.due).getTime()
-    );
-    return formatIntervalVi(entries[0].fsrs.due, new Date(nowMs));
-  }, [progressMap, nowMs]);
+  const upcomingSchedule = useMemo(() => {
+    if (nowMs === null) return [];
+    const nowDate = new Date(nowMs);
+    return allCards
+      .map((card) => ({ card, progress: progressMap[card.id] }))
+      .filter(({ progress }) => progress && progress.attempts > 0)
+      .sort(
+        (a, b) =>
+          new Date(a.progress!.fsrs.due).getTime() -
+          new Date(b.progress!.fsrs.due).getTime()
+      )
+      .slice(0, 8)
+      .map(({ card, progress }) => ({
+        card,
+        intervalVi: formatIntervalVi(progress!.fsrs.due, nowDate),
+        speakingScore: progress!.lastSpeakingScore,
+      }));
+  }, [allCards, progressMap, nowMs]);
 
   const handleCardResult = async (cardId: string, outcome: ImplicitOutcome) => {
     const existing = await getProgressForCard(cardId);
@@ -182,65 +191,105 @@ export function ReviewSessionClient() {
               }}
             />
           </div>
-        ) : dueCards.length > 0 ? (
-          <div className="rounded-2xl bg-white border border-orange-200 p-4 space-y-3.5">
-            <div>
-              <h2 className="font-display text-base font-extrabold text-slate-900">
-                Cần ôn {dueCards.length} thẻ hôm nay
-              </h2>
-              <p className="text-xs font-semibold text-slate-500 mt-0.5">
-                Các thẻ đã đến hạn ôn hoặc cần luyện thêm.
-              </p>
-            </div>
-
-            <div className="flex flex-wrap gap-1.5">
-              {dueCards.map((c) => (
-                <span
-                  key={c.id}
-                  className="rounded-lg bg-slate-50 border border-slate-200 px-2.5 py-1 text-xs font-bold text-slate-800"
-                >
-                  {c.text}
-                </span>
-              ))}
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setActiveCards(dueCards)}
-              className="w-full rounded-xl bg-orange-500 hover:bg-orange-600 text-white py-3 font-extrabold text-sm"
-            >
-              Bắt đầu ôn
-            </button>
-          </div>
         ) : (
-          <div className="rounded-2xl bg-white border border-slate-200 p-5 space-y-4">
-            <div className="space-y-1">
-              <h2 className="font-display text-base font-extrabold text-slate-900">
-                Chưa có thẻ đến hạn ôn
-              </h2>
-              <p className="text-xs font-semibold text-slate-500">
-                {nextUpcomingText
-                  ? `Đợt ôn tập tiếp theo dự kiến: ${nextUpcomingText}.`
-                  : "Hoàn thành một bài học ở tab Bài học để hệ thống bắt đầu xếp lịch ôn."}
-              </p>
-            </div>
+          <>
+            {dueCards.length > 0 ? (
+              <div className="rounded-2xl bg-white border border-orange-200 p-4 space-y-3.5">
+                <div>
+                  <h2 className="font-display text-base font-extrabold text-slate-900">
+                    Cần ôn {dueCards.length} thẻ hôm nay
+                  </h2>
+                  <p className="text-xs font-semibold text-slate-500 mt-0.5">
+                    Các thẻ đã đến hạn ôn hoặc cần luyện thêm.
+                  </p>
+                </div>
 
-            <div className="space-y-2">
-              <button
-                type="button"
-                onClick={handleStartFreePractice}
-                className="w-full rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white py-3 font-bold text-sm"
-              >
-                Ôn ngẫu nhiên 5 thẻ
-              </button>
-              <Link
-                href="/"
-                className="block w-full text-center rounded-xl bg-slate-100 text-slate-700 py-3 font-bold text-sm"
-              >
-                Quay lại bài học
-              </Link>
-            </div>
-          </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {dueCards.map((c) => (
+                    <span
+                      key={c.id}
+                      className="rounded-lg bg-slate-50 border border-slate-200 px-2.5 py-1 text-xs font-bold text-slate-800"
+                    >
+                      {c.text}
+                    </span>
+                  ))}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveCards(dueCards)}
+                  className="w-full rounded-xl bg-orange-500 hover:bg-orange-600 text-white py-3 font-extrabold text-sm"
+                >
+                  Bắt đầu ôn
+                </button>
+              </div>
+            ) : (
+              <div className="rounded-2xl bg-white border border-slate-200 p-5 space-y-4">
+                <div className="space-y-1">
+                  <h2 className="font-display text-base font-extrabold text-slate-900">
+                    Chưa có thẻ đến hạn ôn
+                  </h2>
+                  <p className="text-xs font-semibold text-slate-500">
+                    {upcomingSchedule.length > 0
+                      ? `Đợt ôn tiếp theo dự kiến: ${upcomingSchedule[0].intervalVi}.`
+                      : "Hoàn thành một bài học ở tab Bài học để hệ thống bắt đầu xếp lịch ôn."}
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    onClick={handleStartFreePractice}
+                    className="w-full rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white py-3 font-bold text-sm"
+                  >
+                    Ôn ngẫu nhiên 5 thẻ
+                  </button>
+                  <Link
+                    href="/"
+                    className="block w-full text-center rounded-xl bg-slate-100 text-slate-700 py-3 font-bold text-sm"
+                  >
+                    Quay lại bài học
+                  </Link>
+                </div>
+              </div>
+            )}
+
+            {/* Upcoming SRS Schedule */}
+            {upcomingSchedule.length > 0 && (
+              <section className="rounded-2xl bg-white border border-slate-200 p-4 space-y-2.5">
+                <h3 className="text-xs font-extrabold text-slate-700 uppercase tracking-wide">
+                  Lịch ôn sắp tới
+                </h3>
+                <div className="divide-y divide-slate-100">
+                  {upcomingSchedule.map((item) => (
+                    <div
+                      key={item.card.id}
+                      className="py-2 flex items-center justify-between gap-2 text-xs"
+                    >
+                      <div className="min-w-0">
+                        <span className="font-extrabold text-slate-900">
+                          {item.card.text}
+                        </span>
+                        <span className="text-slate-500 ml-1.5">
+                          ({item.card.meaningVi})
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {item.speakingScore !== undefined && (
+                          <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[11px] font-bold text-slate-600">
+                            {item.speakingScore}/100
+                          </span>
+                        )}
+                        <span className="font-bold text-emerald-700">
+                          {item.intervalVi}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+          </>
         )}
       </div>
 

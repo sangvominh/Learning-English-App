@@ -65,6 +65,7 @@ export function GamesHubClient() {
     Record<string, LearnerCardProgress>
   >({});
   const [scope, setScope] = useState<"all" | "learned">("all");
+  const [lessonFilterId, setLessonFilterId] = useState<string>("all");
   const [activeMode, setActiveMode] = useState<MiniGameMode | null>(null);
   const [gameCards, setGameCards] = useState<LearningCard[]>([]);
   const [finishedDone, setFinishedDone] = useState(false);
@@ -80,6 +81,11 @@ export function GamesHubClient() {
     );
   }, []);
 
+  const allLessons = useMemo(
+    () => curriculum.units.flatMap((u) => u.lessons),
+    [curriculum]
+  );
+
   const allCards = useMemo(
     () => flattenCards(curriculum).map((x) => x.card),
     [curriculum]
@@ -94,11 +100,19 @@ export function GamesHubClient() {
   );
 
   const startPracticeMode = (modeId: MiniGameMode) => {
-    const learnedPool = allCards.filter(
-      (c) => (progressMap[c.id]?.attempts ?? 0) > 0
-    );
-    const pool =
-      scope === "learned" && learnedPool.length > 0 ? learnedPool : allCards;
+    let pool = allCards;
+    if (lessonFilterId !== "all") {
+      const targetLesson = allLessons.find((l) => l.id === lessonFilterId);
+      if (targetLesson && targetLesson.cards.length > 0) {
+        pool = targetLesson.cards;
+      }
+    } else if (scope === "learned") {
+      const learnedPool = allCards.filter(
+        (c) => (progressMap[c.id]?.attempts ?? 0) > 0
+      );
+      if (learnedPool.length > 0) pool = learnedPool;
+    }
+
     const picked = [...pool].sort(() => Math.random() - 0.5).slice(0, 5);
     setGameCards(picked);
     setFinishedDone(false);
@@ -179,29 +193,51 @@ export function GamesHubClient() {
           </div>
         ) : (
           <>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setScope("all")}
-                className={`rounded-xl px-3 py-1.5 text-xs font-bold border ${
-                  scope === "all"
-                    ? "bg-emerald-600 border-emerald-600 text-white"
-                    : "bg-white border-slate-200 text-slate-600"
-                }`}
+            <div className="rounded-2xl bg-white border border-slate-200 p-3 space-y-2.5">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setScope("all");
+                    setLessonFilterId("all");
+                  }}
+                  className={`rounded-xl px-3 py-1.5 text-xs font-bold border ${
+                    scope === "all" && lessonFilterId === "all"
+                      ? "bg-slate-900 border-slate-900 text-white"
+                      : "bg-white border-slate-200 text-slate-600"
+                  }`}
+                >
+                  Tất cả thẻ
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setScope("learned");
+                    setLessonFilterId("all");
+                  }}
+                  className={`rounded-xl px-3 py-1.5 text-xs font-bold border ${
+                    scope === "learned" && lessonFilterId === "all"
+                      ? "bg-slate-900 border-slate-900 text-white"
+                      : "bg-white border-slate-200 text-slate-600"
+                  }`}
+                >
+                  Thẻ đã học
+                </button>
+              </div>
+
+              <select
+                aria-label="Chọn bài học để luyện tập"
+                value={lessonFilterId}
+                onChange={(e) => setLessonFilterId(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-700"
               >
-                Tất cả thẻ
-              </button>
-              <button
-                type="button"
-                onClick={() => setScope("learned")}
-                className={`rounded-xl px-3 py-1.5 text-xs font-bold border ${
-                  scope === "learned"
-                    ? "bg-emerald-600 border-emerald-600 text-white"
-                    : "bg-white border-slate-200 text-slate-600"
-                }`}
-              >
-                Thẻ đã học
-              </button>
+                <option value="all">Theo phạm vi: Tất cả bài ({allCards.length} thẻ)</option>
+                {allLessons.map((l, idx) => (
+                  <option key={l.id} value={l.id}>
+                    Bài {idx + 1}: {l.title} ({l.cards.length} thẻ)
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div className="space-y-2.5">

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, CheckCircle2, Volume2 } from "lucide-react";
-import { playCardAudio, playSfx } from "@/lib/audio-player";
+import { playCardAudio, playSfx, playText } from "@/lib/audio-player";
 import { fetchActiveCurriculum } from "@/lib/client-curriculum";
 import {
   getAllProgress,
@@ -63,11 +63,19 @@ export function LessonSessionClient({ lessonId }: { lessonId: string }) {
 
   const currentCard = found?.lesson.cards[cardIndex];
 
+  const breakdownParts = useMemo(() => {
+    if (!currentCard?.phonicsBreakdown) return [];
+    return currentCard.phonicsBreakdown
+      .split(/\s*[|\-]\s*/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }, [currentCard]);
+
   useEffect(() => {
     if (stage === "learn" && currentCard) {
       const t = window.setTimeout(() => {
         void playCardAudio(currentCard, "normal");
-      }, 250);
+      }, 220);
       return () => window.clearTimeout(t);
     }
   }, [stage, currentCard]);
@@ -136,10 +144,22 @@ export function LessonSessionClient({ lessonId }: { lessonId: string }) {
   const { lesson } = found;
   const totalCards = lesson.cards.length;
 
+  const ensureCurrentCardTracked = async () => {
+    if (!currentCard) return;
+    const existing = await getProgressForCard(currentCard.id);
+    if (!existing) {
+      await recordOutcome(currentCard.id, { kind: "game", attempts: 2 });
+    }
+  };
+
   return (
-    <div className="min-h-screen flex flex-col items-center bg-[#FFFBF2]">
-      <div className="w-full max-w-md min-h-screen px-4 pt-4 pb-8 space-y-4">
-        {/* Header */}
+    <div className="min-h-screen flex flex-col items-center bg-[#F8F7F4]">
+      <div
+        className={`w-full max-w-md min-h-screen px-4 pt-3 space-y-3.5 ${
+          stage === "learn" ? "pb-24" : "pb-8"
+        }`}
+      >
+        {/* Compact Top Header */}
         <header className="flex items-center justify-between gap-2">
           <Link
             href="/"
@@ -151,7 +171,20 @@ export function LessonSessionClient({ lessonId }: { lessonId: string }) {
           <h1 className="font-display text-sm font-extrabold text-slate-900 truncate">
             {lesson.title}
           </h1>
-          <span className="w-12 shrink-0" />
+          {stage === "learn" ? (
+            <button
+              type="button"
+              onClick={async () => {
+                await ensureCurrentCardTracked();
+                setStage("game");
+              }}
+              className="rounded-xl bg-white border border-slate-200 px-2.5 py-1.5 text-xs font-bold text-sky-700 hover:bg-sky-50 shrink-0"
+            >
+              Luyện tập
+            </button>
+          ) : (
+            <span className="w-14 shrink-0" />
+          )}
         </header>
 
         {/* Stage Indicator */}
@@ -163,7 +196,7 @@ export function LessonSessionClient({ lessonId }: { lessonId: string }) {
                 : "bg-emerald-100 text-emerald-800"
             }`}
           >
-            1. Học & Đọc
+            1. Học &amp; Đọc
           </div>
           <div
             className={`rounded-xl py-1.5 ${
@@ -171,7 +204,7 @@ export function LessonSessionClient({ lessonId }: { lessonId: string }) {
                 ? "bg-sky-600 text-white"
                 : stage === "done"
                 ? "bg-emerald-100 text-emerald-800"
-                : "bg-slate-100 text-slate-500"
+                : "bg-slate-200/70 text-slate-500"
             }`}
           >
             2. Luyện tập
@@ -180,7 +213,7 @@ export function LessonSessionClient({ lessonId }: { lessonId: string }) {
             className={`rounded-xl py-1.5 ${
               stage === "done"
                 ? "bg-emerald-600 text-white"
-                : "bg-slate-100 text-slate-500"
+                : "bg-slate-200/70 text-slate-500"
             }`}
           >
             3. Hoàn thành
@@ -189,59 +222,130 @@ export function LessonSessionClient({ lessonId }: { lessonId: string }) {
 
         {/* STAGE 1: FLASHCARD & PRONUNCIATION */}
         {stage === "learn" && currentCard && (
-          <div className="space-y-3.5 animate-pop-in">
-            <div className="flex items-center justify-between text-xs font-bold text-slate-500 px-1">
-              <span>
-                Thẻ {cardIndex + 1} / {totalCards}
-              </span>
-              <span className="rounded-lg bg-white border border-slate-200 px-2.5 py-0.5 text-slate-700">
-                {currentCard.type === "phonics"
-                  ? "Phonics"
-                  : currentCard.type === "sentence"
-                  ? "Câu ngắn"
-                  : "Từ vựng"}
+          <div className="space-y-3 animate-pop-in">
+            {/* Tappable Card Step Bar */}
+            <div className="flex items-center gap-1.5">
+              {lesson.cards.map((c, idx) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => setCardIndex(idx)}
+                  aria-label={`Chuyển đến thẻ ${idx + 1}: ${c.text}`}
+                  className={`h-2 flex-1 rounded-full transition-all ${
+                    idx === cardIndex
+                      ? "bg-emerald-600"
+                      : idx < cardIndex
+                      ? "bg-emerald-300"
+                      : "bg-slate-200"
+                  }`}
+                />
+              ))}
+              <span className="text-[11px] font-bold text-slate-500 pl-1 shrink-0">
+                {cardIndex + 1}/{totalCards}
               </span>
             </div>
 
-            <div className="rounded-2xl bg-white border border-slate-200 p-4 flex flex-col items-center text-center space-y-2.5">
-              <button
-                type="button"
-                onClick={() => void playCardAudio(currentCard, "normal")}
-                className="relative rounded-2xl bg-amber-50/60 p-2.5 active:scale-95 transition"
-                title="Chạm để nghe"
-              >
-                <img
-                  src={currentCard.imageUrl}
-                  alt={currentCard.meaningVi}
-                  className="w-32 h-32 object-contain"
-                />
-                <span className="absolute bottom-1.5 right-1.5 w-7 h-7 rounded-full bg-sky-600 text-white flex items-center justify-center">
-                  <Volume2 className="w-3.5 h-3.5" />
+            {/* Main Knowledge Card */}
+            <div className="rounded-2xl bg-white border border-slate-200 p-4 space-y-3 shadow-xs">
+              <div className="flex items-center justify-between">
+                <span className="rounded-lg bg-slate-100 px-2.5 py-0.5 text-[11px] font-bold text-slate-700">
+                  {currentCard.type === "phonics"
+                    ? "Phonics"
+                    : currentCard.type === "sentence"
+                    ? "Câu ngắn"
+                    : "Từ vựng"}
                 </span>
-              </button>
+                {currentCard.ipa && (
+                  <span className="rounded-lg bg-slate-50 border border-slate-200 px-2 py-0.5 text-xs font-semibold text-slate-600">
+                    {currentCard.ipa}
+                  </span>
+                )}
+              </div>
 
-              <div className="space-y-1">
+              <div className="flex flex-col items-center text-center space-y-2">
+                <button
+                  type="button"
+                  onClick={() => void playCardAudio(currentCard, "normal")}
+                  className="relative rounded-2xl bg-slate-50 border border-slate-100 p-2 active:scale-95 transition"
+                  title="Chạm để nghe"
+                >
+                  <img
+                    src={currentCard.imageUrl}
+                    alt={currentCard.meaningVi}
+                    className="w-28 h-28 object-contain"
+                  />
+                  <span className="absolute bottom-1.5 right-1.5 w-7 h-7 rounded-full bg-sky-600 text-white flex items-center justify-center shadow-xs">
+                    <Volume2 className="w-3.5 h-3.5" />
+                  </span>
+                </button>
+
                 <h2 className="font-display text-3xl font-extrabold text-slate-900 tracking-wide">
                   {currentCard.text}
                 </h2>
-                <div className="flex items-center justify-center gap-2 flex-wrap">
-                  {currentCard.ipa && (
-                    <span className="rounded-lg bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">
-                      {currentCard.ipa}
-                    </span>
-                  )}
-                  {currentCard.phonicsBreakdown && (
-                    <span className="rounded-lg bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-xs font-bold text-emerald-800">
-                      {currentCard.phonicsBreakdown}
-                    </span>
-                  )}
-                </div>
-                <p className="text-sm font-bold text-emerald-800 pt-0.5">
+
+                <p className="text-sm font-extrabold text-emerald-800">
                   {currentCard.meaningVi}
                 </p>
+
+                {/* Tappable phonics breakdown chips */}
+                {breakdownParts.length > 0 && (
+                  <div className="flex flex-wrap items-center justify-center gap-1.5 pt-0.5">
+                    {breakdownParts.map((part, idx) => (
+                      <button
+                        key={`${part}-${idx}`}
+                        type="button"
+                        onClick={() => {
+                          if (currentCard.type === "sentence") {
+                            void playText(part, "slow");
+                          } else {
+                            void playCardAudio(currentCard, "slow");
+                          }
+                        }}
+                        className="rounded-lg bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2.5 py-0.5 text-xs font-bold text-emerald-900"
+                      >
+                        {part}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
+
+              {/* Mouth / Pronunciation Guide visible BEFORE recording */}
+              {currentCard.pronunciationTipVi && (
+                <div className="rounded-xl bg-amber-50 border border-amber-200 px-3 py-2.5 text-xs text-amber-950 leading-relaxed">
+                  <span className="font-extrabold">Cách đọc chuẩn: </span>
+                  <span className="font-semibold">
+                    {currentCard.pronunciationTipVi}
+                  </span>
+                </div>
+              )}
+
+              {/* Example sentence with 1-tap audio */}
+              {currentCard.exampleEn && (
+                <div className="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2.5 flex items-center justify-between gap-2.5">
+                  <div className="min-w-0">
+                    <p className="text-xs font-extrabold text-slate-800">
+                      Ví dụ: {currentCard.exampleEn}
+                    </p>
+                    {currentCard.exampleVi && (
+                      <p className="text-[11px] font-semibold text-slate-500 mt-0.5">
+                        {currentCard.exampleVi}
+                      </p>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void playText(currentCard.exampleEn!, "normal")}
+                    aria-label="Nghe câu ví dụ"
+                    className="w-8 h-8 rounded-lg bg-white border border-slate-200 text-sky-700 flex items-center justify-center shrink-0 hover:bg-sky-50"
+                  >
+                    <Volume2 className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
             </div>
 
+            {/* Pronunciation Coach */}
             <PronunciationCoach
               key={currentCard.id}
               card={currentCard}
@@ -253,47 +357,6 @@ export function LessonSessionClient({ lessonId }: { lessonId: string }) {
                 });
               }}
             />
-
-            <div className="flex items-center gap-2.5 pt-1">
-              {cardIndex > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setCardIndex((i) => i - 1)}
-                  className="rounded-xl bg-white border border-slate-200 px-4 py-3 font-bold text-sm text-slate-700"
-                >
-                  ← Thẻ trước
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={async () => {
-                  playSfx("tap");
-                  const existing = await getProgressForCard(currentCard.id);
-                  if (!existing) {
-                    await recordOutcome(currentCard.id, {
-                      kind: "game",
-                      attempts: 2,
-                    });
-                  }
-                  if (cardIndex + 1 < totalCards) {
-                    setCardIndex((i) => i + 1);
-                  } else {
-                    setStage("game");
-                  }
-                }}
-                className="flex-1 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white py-3 px-4 font-extrabold text-sm flex items-center justify-center gap-2"
-              >
-                {cardIndex + 1 < totalCards ? (
-                  <>
-                    Thẻ tiếp theo <ArrowRight className="w-4 h-4" />
-                  </>
-                ) : (
-                  <>
-                    Vào luyện tập <ArrowRight className="w-4 h-4" />
-                  </>
-                )}
-              </button>
-            </div>
           </div>
         )}
 
@@ -361,6 +424,45 @@ export function LessonSessionClient({ lessonId }: { lessonId: string }) {
           </div>
         )}
       </div>
+
+      {/* Sticky Bottom Thumb Navigation Bar during Learn stage */}
+      {stage === "learn" && currentCard && (
+        <div className="fixed bottom-0 left-0 right-0 z-30 flex justify-center pointer-events-none">
+          <div className="w-full max-w-md bg-white/95 backdrop-blur-md border-t border-slate-200 px-4 py-2.5 pb-safe pointer-events-auto flex items-center gap-2.5">
+            <button
+              type="button"
+              disabled={cardIndex === 0}
+              onClick={() => setCardIndex((i) => Math.max(0, i - 1))}
+              className="rounded-xl bg-slate-100 disabled:opacity-40 px-4 py-3 font-bold text-xs text-slate-700 shrink-0"
+            >
+              ← Trước
+            </button>
+            <button
+              type="button"
+              onClick={async () => {
+                playSfx("tap");
+                await ensureCurrentCardTracked();
+                if (cardIndex + 1 < totalCards) {
+                  setCardIndex((i) => i + 1);
+                } else {
+                  setStage("game");
+                }
+              }}
+              className="flex-1 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white py-3 px-4 font-extrabold text-sm flex items-center justify-center gap-2"
+            >
+              {cardIndex + 1 < totalCards ? (
+                <>
+                  Thẻ tiếp theo <ArrowRight className="w-4 h-4" />
+                </>
+              ) : (
+                <>
+                  Vào luyện tập <ArrowRight className="w-4 h-4" />
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

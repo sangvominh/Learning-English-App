@@ -17,6 +17,8 @@ export interface LearningCard {
   audioSlowUrl?: string;
   pronunciationTipVi: string;
   focusPhonemes: string[];
+  exampleEn?: string;
+  exampleVi?: string;
 }
 
 export interface Lesson {
