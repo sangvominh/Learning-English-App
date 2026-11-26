@@ -204,7 +204,7 @@ export function LessonSessionClient({ lessonId }: { lessonId: string }) {
           </div>
 
           {stage === "learn" && (
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1">
               {lesson.cards.map((c, idx) => (
                 <button
                   key={c.id}
@@ -280,11 +280,11 @@ export function LessonSessionClient({ lessonId }: { lessonId: string }) {
                 {currentCard.exampleEn && (
                   <div className="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2 flex items-center justify-between gap-2">
                     <div className="min-w-0">
-                      <p className="text-xs font-extrabold text-slate-800 truncate">
+                      <p className="text-xs font-extrabold text-slate-800 line-clamp-2 leading-snug">
                         {currentCard.exampleEn}
                       </p>
                       {currentCard.exampleVi && (
-                        <p className="text-[11px] font-semibold text-slate-500 truncate">
+                        <p className="text-[11px] font-semibold text-slate-500 line-clamp-2 leading-snug">
                           {currentCard.exampleVi}
                         </p>
                       )}

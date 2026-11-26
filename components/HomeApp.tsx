@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Check, ChevronRight } from "lucide-react";
+import { ArrowRight, Check, ChevronRight, Search, X } from "lucide-react";
 import { fetchActiveCurriculum } from "@/lib/client-curriculum";
 import { getAllProgress, getProfile } from "@/lib/learner-db";
 import { flattenCards, SEED_CURRICULUM } from "@/lib/seed-curriculum";
@@ -33,6 +33,7 @@ export function HomeApp() {
   const [trackFilter, setTrackFilter] = useState<
     "all" | "daily_talk" | "vocab_use"
   >("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const [pinOpen, setPinOpen] = useState(false);
 
   useEffect(() => {
@@ -81,14 +82,30 @@ export function HomeApp() {
   const vocabCount = allLessons.length - dailyTalkCount;
 
   const filteredLessons = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
     return allLessons
       .map((lesson, idx) => ({ lesson, order: idx + 1 }))
       .filter(({ lesson }) => {
-        if (trackFilter === "all") return true;
-        if (trackFilter === "daily_talk") return lesson.track === "daily_talk";
-        return lesson.track !== "daily_talk";
+        if (trackFilter === "daily_talk" && lesson.track !== "daily_talk") {
+          return false;
+        }
+        if (trackFilter === "vocab_use" && lesson.track === "daily_talk") {
+          return false;
+        }
+        if (!q) return true;
+        if (
+          lesson.title.toLowerCase().includes(q) ||
+          lesson.subtitleVi.toLowerCase().includes(q)
+        ) {
+          return true;
+        }
+        return lesson.cards.some(
+          (c) =>
+            c.text.toLowerCase().includes(q) ||
+            c.meaningVi.toLowerCase().includes(q)
+        );
       });
-  }, [allLessons, trackFilter]);
+  }, [allLessons, trackFilter, searchQuery]);
 
   const handlePinSuccess = (pin: string) => {
     try {
@@ -166,7 +183,7 @@ export function HomeApp() {
             </div>
 
             <div className="flex flex-wrap gap-1.5">
-              {nextLesson.cards.map((c) => (
+              {nextLesson.cards.slice(0, 5).map((c) => (
                 <span
                   key={c.id}
                   className="rounded-lg bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-700"
@@ -174,6 +191,11 @@ export function HomeApp() {
                   {c.text}
                 </span>
               ))}
+              {nextLesson.cards.length > 5 && (
+                <span className="rounded-lg bg-emerald-50 text-emerald-700 px-2 py-0.5 text-xs font-extrabold">
+                  +{nextLesson.cards.length - 5}
+                </span>
+              )}
             </div>
 
             <Link
@@ -185,6 +207,29 @@ export function HomeApp() {
             </Link>
           </section>
         )}
+
+        {/* Search Input */}
+        <div className="relative">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Tìm bài học hoặc từ vựng..."
+            aria-label="Tìm bài học hoặc từ vựng"
+            className="w-full rounded-xl border border-slate-200 bg-white pl-9 pr-9 py-2 text-xs font-semibold text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-emerald-400"
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery("")}
+              aria-label="Xóa tìm kiếm"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-0.5"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
 
         {/* Track Filter Pills */}
         <div className="flex items-center gap-2 overflow-x-auto pb-0.5">
@@ -273,7 +318,7 @@ export function HomeApp() {
 
                 {/* Word preview chips */}
                 <div className="flex flex-wrap gap-1.5 pl-12">
-                  {lesson.cards.map((c) => {
+                  {lesson.cards.slice(0, 5).map((c) => {
                     const cardStudied = (progressMap[c.id]?.attempts ?? 0) > 0;
                     return (
                       <span
@@ -288,6 +333,11 @@ export function HomeApp() {
                       </span>
                     );
                   })}
+                  {lesson.cards.length > 5 && (
+                    <span className="rounded-md px-2 py-0.5 text-[11px] font-extrabold bg-slate-100 text-slate-500">
+                      +{lesson.cards.length - 5}
+                    </span>
+                  )}
                 </div>
 
                 {learnedCards > 0 && !isDone && (
@@ -303,6 +353,16 @@ export function HomeApp() {
               </Link>
             );
           })}
+          {filteredLessons.length === 0 && (
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 text-center space-y-1.5">
+              <p className="text-sm font-extrabold text-slate-700">
+                Không tìm thấy bài phù hợp
+              </p>
+              <p className="text-xs font-semibold text-slate-500">
+                Thử xóa từ khóa hoặc chuyển sang tab Tất cả.
+              </p>
+            </div>
+          )}
         </section>
       </div>
 

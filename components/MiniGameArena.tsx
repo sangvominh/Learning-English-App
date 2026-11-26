@@ -149,6 +149,7 @@ export function MiniGameArena({
           <ListenPickGame
             key={current.id}
             card={current.card}
+            lessonCards={cards}
             pool={distractorPool}
             onResult={(outcome, missed) => {
               if (missed) handleMissAndRequeue(current);
@@ -203,28 +204,41 @@ export function MiniGameArena({
  * ======================================================= */
 function ListenPickGame({
   card,
+  lessonCards = [],
   pool,
   onResult,
 }: {
   card: LearningCard;
+  lessonCards?: LearningCard[];
   pool: LearningCard[];
   onResult: (outcome: ImplicitOutcome, missed: boolean) => void;
 }) {
   const options = useMemo(() => {
-    const uniqueOthers = shuffle(
-      pool.filter(
-        (c) =>
-          c.id !== card.id &&
-          c.imageUrl !== card.imageUrl &&
-          c.text.toLowerCase() !== card.text.toLowerCase()
-      )
-    ).slice(0, 3);
-    const fillers =
-      uniqueOthers.length < 3
-        ? pool.filter((c) => c.id !== card.id).slice(0, 3 - uniqueOthers.length)
-        : [];
-    return shuffle([card, ...uniqueOthers, ...fillers]).slice(0, 4);
-  }, [card, pool]);
+    const picked: LearningCard[] = [];
+    const seenIds = new Set<string>([card.id]);
+    const seenImages = new Set<string>([card.imageUrl]);
+    const seenTexts = new Set<string>([card.text.toLowerCase()]);
+
+    const tryPickFrom = (source: LearningCard[], requireUniqueImage: boolean) => {
+      for (const c of shuffle(source)) {
+        if (picked.length >= 3) break;
+        if (seenIds.has(c.id)) continue;
+        if (seenTexts.has(c.text.toLowerCase())) continue;
+        if (requireUniqueImage && seenImages.has(c.imageUrl)) continue;
+        seenIds.add(c.id);
+        seenImages.add(c.imageUrl);
+        seenTexts.add(c.text.toLowerCase());
+        picked.push(c);
+      }
+    };
+
+    tryPickFrom(lessonCards, true);
+    tryPickFrom(pool, true);
+    tryPickFrom(lessonCards, false);
+    tryPickFrom(pool, false);
+
+    return shuffle([card, ...picked]).slice(0, 4);
+  }, [card, lessonCards, pool]);
 
   const [attempts, setAttempts] = useState(0);
   const [wrongIds, setWrongIds] = useState<string[]>([]);
